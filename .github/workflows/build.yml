@@ -1,35 +1,40 @@
 name: Build
 
-on: push
+# push: 32-bit only. Manual run: pick 32-bit, 64-bit or both.
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: Which build to run
+        type: choice
+        options: [32-bit, 64-bit, both]
+        default: 32-bit
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WAF_EXTRA: --use-ccache ${{ github.ref_name == 'rocketui-port' && '--rocketui' || '' }}
 
 jobs:
-  Build-apk-for-android:
+  build-32:
+    if: github.event_name == 'push' || inputs.arch != '64-bit'
     runs-on: ubuntu-latest
-    env:
-      WAF_EXTRA: ${{ github.ref_name == 'rocketui-port' && '--rocketui' || '' }}
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Cloning modlaucher repo and preparing for building
-      run: |
-        git clone https://github.com/DMK95/Srceng-mod-launcher/ -b csso
-        sudo apt-get update
-        sudo apt-get install -f -y openjdk-8-jre zip apksigner
-    - name: Build Android (32 bit)
-      run: |
-        scripts/build-android-armv7a.sh
-    - name: Build Android (64 bit)
-      run: |
-        scripts/build-android-aarch64.sh    
-    - name: Build APK
-      run: |
-        scripts/build-apk.sh 
-    - name: Rename APK
-      run: |
-         mv Srceng-mod-launcher/build/android/mod-signed.apk csso-release.apk
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/android-build
+        with:
+          script: build-android-armv7a.sh
+          abi: armeabi-v7a
 
-    - name: 'Upload APK'
-      uses: actions/upload-artifact@v7
-      with:
-        path: csso-release.apk
-        archive: false
+  build-64:
+    if: github.event_name == 'workflow_dispatch' && inputs.arch != '32-bit'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/android-build
+        with:
+          script: build-android-aarch64.sh
+          abi: arm64-v8a
