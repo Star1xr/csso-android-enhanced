@@ -29,7 +29,7 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
 - [x] 1.0 `USE_CSSOUI` / `USE_CSSOROCKETUI` switch (`--rocketui`), no behaviour change by default
 - [~] 1.1 RmlUi 5.1 (Core only) in `rmlui/` + waf static lib. Waiting for Actions result (`--rocketui` is passed on the `rocketui-port` branch via `WAF_EXTRA`).
   RmlUi 6.x needs C++17, Android build is C++11 + NDK r10e libstdc++ 4.9, so 5.1 (C++14) is used. `thirdparty/` is a submodule, so it is not used.
-- [ ] 1.2 `rocketui` module: system interface, file interface (via IFileSystem), GLES3 renderer, input (touch + SDL)
+- [ ] 1.2 `rocketui` module: system interface, file interface (via IFileSystem; reads `rocketui/*` from the `GAME` search path, i.e. `csso/rocketui/` in the game dir, no `csgo/` paths anywhere), GLES3 renderer, input (touch + SDL)
 - [ ] 1.3 Client hooks under `USE_CSSOROCKETUI`: load `RocketUI001` interface, frame/render calls, input routing, device-lost handling
 - [ ] 1.4 Main menu document + options panel, loadout entry in main menu (backed by existing `cs_loadout` / `loadout_*` cvars)
 - [ ] 1.5 Adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names, ship under `csso/rocketui/` (game files live in the `game-files` release as `csso-rocketui.zip`, not in this repo; still CS:GO names inside)
