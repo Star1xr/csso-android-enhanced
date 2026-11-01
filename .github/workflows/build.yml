@@ -28,8 +28,8 @@ jobs:
       run: |
          mv Srceng-mod-launcher/build/android/mod-signed.apk csso-release.apk
 
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@v3
+    - name: 'Upload APK'
+      uses: actions/upload-artifact@v7
       with:
-        name: csso-apk
         path: csso-release.apk
+        archive: false
