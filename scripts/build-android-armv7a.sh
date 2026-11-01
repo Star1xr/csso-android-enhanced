@@ -6,8 +6,8 @@ export ANDROID_NDK_HOME=$PWD/android-ndk-r10e/
 wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz -o /dev/null
 tar -xf clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
 export PATH="$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04/bin:$PATH"
-./waf configure -T release --build-game=cstrike --prefix=Srceng-mod-launcher/android --android=armeabi-v7a-hard,host,21 --target=../armeabi-v7a --32bits --enable-opus --togles --disable-warns &&
-./waf install --target=client,server,engine,GameUI,vgui2,vguimatsurface,vstdlib --strip
+./waf configure -T release --build-game=cstrike --prefix=Srceng-mod-launcher/android --android=armeabi-v7a-hard,host,21 --target=../armeabi-v7a --32bits --enable-opus --togles --disable-warns $WAF_EXTRA &&
+./waf install --target=client,server,engine,GameUI,vgui2,vguimatsurface,vstdlib$([ -n "$WAF_EXTRA" ] && echo ,rmlui) --strip
 
 if [ -e "Srceng-mod-launcher/android/lib/armeabi-v7a/README.md" ]; then
 	rm Srceng-mod-launcher/android/lib/armeabi-v7a/README.md

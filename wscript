@@ -485,6 +485,9 @@ def configure(conf):
 	elif conf.env.GL:
 		projects['game'] += ['togl']
 
+	if conf.env.ROCKETUI:
+		projects['game'] += ['rmlui']
+
 	if conf.env.DEST_OS == 'win32':
 		projects['game'] += ['utils/bzip2']
 		projects['dedicated'] += ['utils/bzip2']
@@ -669,5 +672,8 @@ def build(bld):
 			projects['game'] += ['togles']
 		elif bld.env.GL:
 			projects['game'] += ['togl']
+
+		if bld.env.ROCKETUI:
+			projects['game'] += ['rmlui']
 
 		bld.add_subproject(projects['game'])

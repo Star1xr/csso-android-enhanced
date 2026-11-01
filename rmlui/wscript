@@ -1,0 +1,41 @@
+#! /usr/bin/env python
+# encoding: utf-8
+
+# RmlUi 5.1 (Core only), used by RocketUI. Built only with --rocketui.
+# RmlUi needs C++14, the engine default is C++11, so override per target.
+
+top = '.'
+PROJECT_NAME = 'rmlui'
+
+def options(opt):
+	# stub
+	return
+
+def configure(conf):
+	return
+
+def build(bld):
+	source = bld.path.ant_glob('Source/Core/**/*.cpp')
+
+	includes = [
+		'Include',
+		'Source/Core'
+	]
+
+	defines = ['RMLUI_STATIC_LIB']
+
+	libs = ['FT2']
+
+	bld.stlib(
+		source   = source,
+		target   = PROJECT_NAME,
+		name     = PROJECT_NAME,
+		features = 'cxx',
+		includes = includes,
+		defines  = defines,
+		cxxflags = ['-std=c++14', '-include', 'cstdint'],
+		use      = libs,
+		install_path = None,
+		subsystem = bld.env.MSVC_SUBSYSTEM,
+		idx      = bld.get_taskgen_count()
+	)

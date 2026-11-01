@@ -5,6 +5,8 @@ on: push
 jobs:
   Build-apk-for-android:
     runs-on: ubuntu-latest
+    env:
+      WAF_EXTRA: ${{ github.ref_name == 'rocketui-port' && '--rocketui' || '' }}
 
     steps:
     - uses: actions/checkout@v2
