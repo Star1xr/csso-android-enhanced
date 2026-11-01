@@ -31,8 +31,6 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
   RmlUi 6.x needs C++17, Android build is C++11 + NDK r10e libstdc++ 4.9, so 5.1 (C++14) is used. `thirdparty/` is a submodule, so it is not used.
 - [ ] 1.2 `rocketui` module: system interface, file interface (via IFileSystem; reads `rocketui/*` from the `GAME` search path, i.e. `csso/rocketui/` in the game dir, no `csgo/` paths anywhere), GLES3 renderer, input (touch + SDL)
 - [ ] 1.3 Client hooks under `USE_CSSOROCKETUI`: load `RocketUI001` interface, frame/render calls, input routing, device-lost handling
-- [ ] 1.4 Main menu document + options panel, loadout entry in main menu (backed by existing `cs_loadout` / `loadout_*` cvars)
-- [ ] 1.5 Adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names, ship under `csso/rocketui/` (game files live in the `game-files` release as `csso-rocketui.zip`, not in this repo; still CS:GO names inside)
-- [ ] 1.6 HUD documents (chat, killfeed, scoreboard, radar, roundtimer, buymenu, teammenu, loading screen, pause menu)
+- [ ] 1.4 UI documents (merged 1.4 + 1.5 + 1.6): adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names (game files, `csso/rocketui/`, released via `game-files`), and wire up main menu, options panel (loadout entry backed by `cs_loadout` / `loadout_*` cvars), and HUD documents (chat, killfeed, scoreboard, radar, roundtimer, buymenu, teammenu, loading screen, pause menu)
 
 Later: Game Instructor + screen guides, CS:GO style net_graph, Fake CSM, Valve intro video.
