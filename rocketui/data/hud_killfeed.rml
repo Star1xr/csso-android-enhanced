@@ -1,0 +1,74 @@
+<rml>
+	<head>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body
+			{
+				position: absolute;
+				top: 3%;
+				right: 2%;
+				width: 34%;
+				max-height: 46%;
+				overflow: hidden;
+				font-family: Lato;
+				font-size: 18px;
+				color: #e6e6e6;
+				text-align: right;
+			}
+			.killfeed-entry
+			{
+				display: block;
+				margin-bottom: 6px;
+				padding: 8px 12px;
+				background-color: #14181ce6;
+				border-left-width: 3px;
+				border-left-color: #d9a441;
+			}
+			.line { display: block; }
+			.attacker
+			{
+				display: inline-block;
+				color: #f0c060;
+				font-weight: bold;
+			}
+			.weapon
+			{
+				display: inline-block;
+				margin: 0 8px;
+				color: #9aa4af;
+			}
+			.victim
+			{
+				display: inline-block;
+				color: #ffffff;
+			}
+			.badge
+			{
+				display: inline-block;
+				margin-left: 6px;
+				padding: 2px 5px;
+				background-color: #303943;
+				color: #e6e6e6;
+				font-size: 13px;
+			}
+			.badge.headshot
+			{
+				background-color: #d9a441;
+				color: #14181c;
+			}
+		</style>
+	</head>
+	<body data-model="killfeed_model">
+		<div id="killfeed-lines">
+			<div class="killfeed-entry" data-for="entry : killfeed_entries">
+				<div class="line">
+					<div class="attacker">{{ entry.attacker_name }}</div>
+					<div class="weapon">{{ entry.weapon_name }}</div>
+					<div class="victim">{{ entry.victim_name }}</div>
+					<div class="badge headshot" data-if="entry.headshot">HS</div>
+					<div class="badge" data-if="entry.wallbang">WALL</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</rml>

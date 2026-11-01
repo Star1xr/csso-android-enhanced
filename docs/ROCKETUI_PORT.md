@@ -29,26 +29,26 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
 - [x] 1.0 `USE_CSSOUI` / `USE_CSSOROCKETUI` switch (`--rocketui`), no behaviour change by default
 - [x] 1.1 RmlUi 5.1 (Core only) in `rmlui/` + waf static lib. Built OK in Actions (32-bit).
   RmlUi 6.x needs C++17, Android build is C++11 + NDK r10e libstdc++ 4.9, so 5.1 (C++14) is used. `thirdparty/` is a submodule, so it is not used.
-- [~] 1.2 `rocketui/` module -> `librocketui_client.so` (waf target `rocketui_client`, only with `--rocketui`). Written, host syntax-checked; waiting for Actions.
+- [x] 1.2 `rocketui/` module -> `librocketui_client.so` (waf target `rocketui_client`, only with `--rocketui`). Actions passed.
   - `RocketFileSystem`: reads `rocketui/<path>` from the `GAME` search path (= `csso/rocketui/`), no `csgo/` anywhere
   - `RocketSystem`: log -> Warning/DevMsg, clipboard via vgui ISystem
   - `RocketRender`: GLES3 shader renderer (own VAO/VBO, saves + restores all GL state it touches, TGA textures). No call into ToGLES internals.
   - `RocketUIImpl` (`IRocketUI`, `public/rocketui/rocketui.h`): menu + hud contexts, fonts, input (buttons, mouse X/Y, touch fingers -> pointer), `rocket_enable` / `rocket_reload`
   - Dropped vs Kisak: device-dependent-object callbacks (this engine has none; screen size is polled via `IVEngineClient::GetScreenSize`), SDL cursors, RmlUi debugger (Core only)
   - Custom elements (`KisakConvarSetting*`, `KisakURL`): done in 1.4a
-- [~] 1.3 Hooks under `USE_CSSOROCKETUI` (written, waiting for Actions):
+- [x] 1.3 Hooks under `USE_CSSOROCKETUI` (Actions passed):
   - engine owns the module: `CEngineVGui::Init` loads `librocketui_client.so` (`Sys_LoadModule`), `Connect(g_AppSystemFactory)` + `Init()`; missing/failed module -> old vgui menu stays (just a warning). `Shutdown` tears it down.
   - engine `Simulate` -> `RunFrame`; `Paint(PAINT_UIPANELS)` -> flush matsys, `RenderMenuFrame()` while GameUI is visible
   - engine `CGame::DispatchInputEvent` -> `HandleInputEvent` first, consumed events never reach binds/vgui
   - client `VGui_PostRender` -> `RenderHUDFrame()`; client only borrows the interface (`g_pRocketUI`), never Connect/Init
   - Open: text input (`HandleTextInput` is not fed yet, needed for text fields), ESC -> pause menu registration (1.4), real-device check of ToGLES state interplay
 - [~] 1.4 UI documents. Split in two, the engine owns the module and loads it before the client DLL exists, so menu documents live in the module and HUD documents in the client:
-  - [~] 1.4a module-owned documents (written, host syntax-checked, waiting for Actions): `rocketui/data/` = CS:SO `.rml/.rcss` (own, not Kisak's invader theme), packed into `csso/rocketui/` by the `game-files` workflow together with Kisak's fonts + images.
+  - [x] 1.4a module-owned documents (`rocketui/data/`): CS:SO `.rml/.rcss` (own, not Kisak's invader theme), packed into `csso/rocketui/` by the `game-files` workflow together with Kisak's fonts + images. Latest Actions run passed.
     - `customelements.cpp`: `KisakConvarSettingEnum`, `KisakConvarSettingSlider`, `KisakURL` on the RmlUi 5.1 API (unknown convar -> "(unavailable)", no crash)
     - `rkmenu.cpp`: `menu.rml` (map select + Start, Options, Console, Quit), visible only while `!IsInGame()` and owns input then; `panel_options.rml` (video/game/audio convars, Save = `mat_savechanges` + `host_writeconfig`), `panel_popup.rml`
     - `IRocketUI::ShowOptionsPanel` / `ShowPopup` so the client pause menu can open them; console: `rocket_options`, `rocket_test_popup`
     - Open: text fields (`HandleTextInput` still not fed), touch scrolling in the options panel, real-device look of select/slider styling
-  - [ ] 1.4b client HUD documents (`game/client/cstrike/RocketUI/`): chat, killfeed, scoreboard, radar, roundtimer, infobar, buymenu, teammenu, loading screen, pause menu (`RegisterPauseMenu`, ESC); CS:SO panel/element names instead of CS:GO ones
+  - [~] 1.4b client HUD documents (`game/client/cstrike/RocketUI/`): first local slice adds the player-death killfeed and suppresses the duplicate VGUI notice when RocketUI is active. The settings panel also has a Loadout button that opens CS:SO's existing Loadout tab. Remaining: chat/text input, scoreboard, radar, roundtimer, infobar, buymenu, teammenu, loading screen, pause menu (`RegisterPauseMenu`, ESC); adapt CS:SO panel/element names instead of CS:GO ones.
 
 - [ ] 1.5 Console + net_graph: port the CS:GO look from Kisak-Strike to CS:SO (restyle the vgui console, CS:GO style `net_graph`); needs a look at Kisak's console/netgraph sources first
 

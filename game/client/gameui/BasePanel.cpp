@@ -2780,6 +2780,17 @@ void CBaseModPanel::RunMenuCommand(const char *command)
 	{
 		OnOpenModOptionsDialog();
 	}
+	else if ( !Q_stricmp( command, "OpenLoadoutDialog" ) )
+	{
+		OnOpenModOptionsDialog();
+		if ( m_hModOptionsDialog.Get() )
+		{
+			PropertySheet *pSheet = m_hModOptionsDialog->GetPropertySheet();
+			Panel *pLoadoutPage = pSheet ? pSheet->GetPage( 2 ) : NULL;
+			if ( pLoadoutPage )
+				pSheet->SetActivePage( pLoadoutPage );
+		}
+	}
 	else if ( !Q_stricmp( command, "OpenControllerDialog" ) )
 	{
 		if ( GameUI().IsConsoleUI() )

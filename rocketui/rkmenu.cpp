@@ -108,6 +108,11 @@ namespace
 				Command( "mat_savechanges" );
 				Command( "host_writeconfig" );
 			}
+			else if ( id == "loadout" )
+			{
+				RocketMenu::ShowOptions( false );
+				Command( "rocketui_open_loadout" );
+			}
 			else if ( id == "close" )
 				RocketMenu::ShowOptions( false );
 		}
