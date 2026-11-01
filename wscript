@@ -210,6 +210,17 @@ def define_platform(conf):
 	if conf.options.TOGLES:
 		conf.env.append_unique('DEFINES', ['TOGLES'])
 
+	# UI backend selection (exactly one of these is always defined):
+	#   USE_CSSOUI        - original CS:SO vgui based UI (default)
+	#   USE_CSSOROCKETUI  - RmlUi ("RocketUI") based UI ported from Kisak-Strike
+	conf.env.ROCKETUI = conf.options.ROCKETUI and not conf.options.DEDICATED and not conf.options.TESTS
+	if conf.options.ROCKETUI and not conf.env.ROCKETUI:
+		Logs.warn('--rocketui is ignored for dedicated server / unit tests builds')
+	if conf.env.ROCKETUI:
+		conf.env.append_unique('DEFINES', ['USE_CSSOROCKETUI=1'])
+	else:
+		conf.env.append_unique('DEFINES', ['USE_CSSOUI=1'])
+
 	if conf.options.TESTS:
 		conf.define('UNITTESTS', 1)
 
@@ -318,6 +329,9 @@ def options(opt):
 
 	grp.add_option('--togles', action = 'store_true', dest = 'TOGLES', default = False,
 		help = 'build engine with ToGLES [default: %default]')
+
+	grp.add_option('--rocketui', action = 'store_true', dest = 'ROCKETUI', default = False,
+		help = 'build with RmlUi based RocketUI (USE_CSSOROCKETUI) instead of the original CS:SO UI (USE_CSSOUI) [default: %default]')
 
 	# TODO(nillerusr): add wscript for opus building
 	grp.add_option('--enable-opus', action = 'store_true', dest = 'OPUS', default = False,
