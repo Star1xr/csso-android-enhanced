@@ -362,8 +362,19 @@ void CGame::HandleMsg_Close( const InputEvent_t &event )
 	}
 }
 
+#ifdef USE_CSSOROCKETUI
+#include "rocketui/rocketui.h"
+extern IRocketUI *g_pRocketUI; // engine/vgui_baseui_interface.cpp
+#endif
+
 void CGame::DispatchInputEvent( const InputEvent_t &event )
 {
+#ifdef USE_CSSOROCKETUI
+	// RocketUI gets the first look; it returns true when it consumed the event (menu open etc.)
+	if ( g_pRocketUI && g_pRocketUI->HandleInputEvent( event ) )
+		return;
+#endif
+
 	switch( event.m_nType )
 	{
 	// Handle button events specially, 

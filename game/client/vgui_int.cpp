@@ -280,8 +280,37 @@ void VGui_PreRender()
 	}
 }
 
+#ifdef USE_CSSOROCKETUI
+#include "rocketui/rocketui.h"
+
+// The engine owns the module (Connect/Init/Shutdown). The client only borrows the interface for the HUD.
+IRocketUI *g_pRocketUI = NULL;
+static CSysModule *s_pRocketModule = NULL;
+static bool s_bRocketLookedUp = false;
+
+static IRocketUI *RocketUI_ClientGet()
+{
+	if ( !s_bRocketLookedUp )
+	{
+		s_bRocketLookedUp = true;
+		s_pRocketModule = Sys_LoadModule( "rocketui_client" );
+		if ( s_pRocketModule )
+		{
+			CreateInterfaceFn factory = Sys_GetFactory( s_pRocketModule );
+			if ( factory )
+				g_pRocketUI = (IRocketUI *)factory( ROCKETUI_INTERFACE_VERSION, NULL );
+		}
+	}
+	return g_pRocketUI;
+}
+#endif
+
 void VGui_PostRender()
 {
+#ifdef USE_CSSOROCKETUI
+	if ( IRocketUI *pRocket = RocketUI_ClientGet() )
+		pRocket->RenderHUDFrame();
+#endif
 }
 
 //-----------------------------------------------------------------------------

@@ -213,9 +213,12 @@ void RocketUIImpl::RunFrame( float time )
 	m_fTime = time;
 	UpdateScreenSize();
 
-	// Elements are added/changed all the time; Update() once per frame for the active context.
-	if ( m_ctxCurrent )
-		m_ctxCurrent->Update();
+	// Elements are added/changed all the time; Update() both contexts once per frame
+	// (m_ctxCurrent only tells which one was rendered last).
+	if ( m_ctxHud )
+		m_ctxHud->Update();
+	if ( m_ctxMenu )
+		m_ctxMenu->Update();
 }
 
 void RocketUIImpl::DenyInputToGame( bool value, const char *why )

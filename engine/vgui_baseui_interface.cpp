@@ -101,6 +101,54 @@
 #include "replay_internal.h"
 #endif
 
+#ifdef USE_CSSOROCKETUI
+// RocketUI (RmlUi) main menu. The module is optional: if librocketui_client.so is missing, the old vgui menu is used.
+#include "rocketui/rocketui.h"
+extern CreateInterfaceFn g_AppSystemFactory;
+IRocketUI *g_pRocketUI = NULL;
+static CSysModule *s_pRocketModule = NULL;
+
+static void RocketUI_EngineInit()
+{
+	s_pRocketModule = Sys_LoadModule( "rocketui_client" );
+	if ( !s_pRocketModule )
+	{
+		Warning( "RocketUI: rocketui_client not found, using the vgui menu\n" );
+		return;
+	}
+
+	CreateInterfaceFn factory = Sys_GetFactory( s_pRocketModule );
+	IRocketUI *pRocket = factory ? (IRocketUI *)factory( ROCKETUI_INTERFACE_VERSION, NULL ) : NULL;
+	if ( !pRocket || !pRocket->Connect( g_AppSystemFactory ) )
+	{
+		Warning( "RocketUI: Connect failed, using the vgui menu\n" );
+		return;
+	}
+	if ( pRocket->Init() != INIT_OK )
+	{
+		Warning( "RocketUI: Init failed, using the vgui menu\n" );
+		pRocket->Disconnect();
+		return;
+	}
+	g_pRocketUI = pRocket;
+}
+
+static void RocketUI_EngineShutdown()
+{
+	if ( g_pRocketUI )
+	{
+		g_pRocketUI->Shutdown();
+		g_pRocketUI->Disconnect();
+		g_pRocketUI = NULL;
+	}
+	if ( s_pRocketModule )
+	{
+		Sys_UnloadModule( s_pRocketModule );
+		s_pRocketModule = NULL;
+	}
+}
+#endif
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -783,6 +831,10 @@ void CEngineVGui::Init()
 	// load the base localization file
 	g_pVGuiLocalize->AddFile( "Resource/valve_%language%.txt" );
 
+#ifdef USE_CSSOROCKETUI
+	RocketUI_EngineInit();
+#endif
+
 	COM_TimestampedLog( "staticGameUIFuncs->Initialize" );
 
 	staticGameUIFuncs->Initialize( g_AppSystemFactory );
@@ -902,6 +954,10 @@ extern bool g_bUsingLegacyAppSystems;
 //-----------------------------------------------------------------------------
 void CEngineVGui::Shutdown()
 {
+#ifdef USE_CSSOROCKETUI
+	RocketUI_EngineShutdown();
+#endif
+
 	if ( IsPC() && CL_IsHL2Demo() ) // if they are playing the demo then open the storefront on shutdown
 	{
 		vgui::system()->ShellExecute("open", "steam://store_demo/220");
@@ -1616,6 +1672,10 @@ void CEngineVGui::Simulate()
 		//!! currently this has to be done once per dll, because the anim controller object is in a lib;
 		//!! need to make it globally pumped (gameUI.dll has it's own version of this)
 		vgui::GetAnimationController()->UpdateAnimations( Sys_FloatTime() );
+#ifdef USE_CSSOROCKETUI
+		if ( g_pRocketUI )
+			g_pRocketUI->RunFrame( Sys_FloatTime() );
+#endif
 
 		int w, h;
 #if defined( USE_SDL )
@@ -1726,6 +1786,16 @@ void CEngineVGui::Paint( PaintMode_t mode )
 
 		staticClientDLLPanel->SetVisible( saveVisible );
 		staticClientDLLToolsPanel->SetVisible( saveToolsVisible );
+
+#ifdef USE_CSSOROCKETUI
+		// RmlUi menu goes on top of the vgui menu. Flush queued vgui rendering first, the module issues raw GLES calls.
+		if ( g_pRocketUI && IsGameUIVisible() )
+		{
+			CMatRenderContextPtr pRocketContext( materials );
+			pRocketContext->Flush( true );
+			g_pRocketUI->RenderMenuFrame();
+		}
+#endif
 	}
 	
 	if ( mode & PAINT_INGAMEPANELS )

@@ -36,7 +36,14 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
   - `RocketUIImpl` (`IRocketUI`, `public/rocketui/rocketui.h`): menu + hud contexts, fonts, input (buttons, mouse X/Y, touch fingers -> pointer), `rocket_enable` / `rocket_reload`
   - Dropped vs Kisak: device-dependent-object callbacks (this engine has none; screen size is polled via `IVEngineClient::GetScreenSize`), SDL cursors, RmlUi debugger (Core only)
   - Not yet: custom elements (`KisakConvarSetting*`, `KisakURL`) -> 1.4
-- [ ] 1.3 Client hooks under `USE_CSSOROCKETUI`: the client loads `librocketui_client.so` itself (Sys_LoadModule + Connect/Init with the client factory, no engine change), defines `g_pRocketUI`, forwards text input (`HandleTextInput`), frame/render calls, input routing, device-lost handling
+- [~] 1.3 Hooks under `USE_CSSOROCKETUI` (written, waiting for Actions):
+  - engine owns the module: `CEngineVGui::Init` loads `librocketui_client.so` (`Sys_LoadModule`), `Connect(g_AppSystemFactory)` + `Init()`; missing/failed module -> old vgui menu stays (just a warning). `Shutdown` tears it down.
+  - engine `Simulate` -> `RunFrame`; `Paint(PAINT_UIPANELS)` -> flush matsys, `RenderMenuFrame()` while GameUI is visible
+  - engine `CGame::DispatchInputEvent` -> `HandleInputEvent` first, consumed events never reach binds/vgui
+  - client `VGui_PostRender` -> `RenderHUDFrame()`; client only borrows the interface (`g_pRocketUI`), never Connect/Init
+  - Open: text input (`HandleTextInput` is not fed yet, needed for text fields), ESC -> pause menu registration (1.4), real-device check of ToGLES state interplay
 - [ ] 1.4 UI documents (merged 1.4 + 1.5 + 1.6): adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names (game files, `csso/rocketui/`, released via `game-files`), and wire up main menu, options panel (loadout entry backed by `cs_loadout` / `loadout_*` cvars), and HUD documents (chat, killfeed, scoreboard, radar, roundtimer, buymenu, teammenu, loading screen, pause menu)
 
-Later: Game Instructor + screen guides, CS:GO style net_graph, Fake CSM, Valve intro video.
+- [ ] 1.5 Console + net_graph: port the CS:GO look from Kisak-Strike to CS:SO (restyle the vgui console, CS:GO style `net_graph`); needs a look at Kisak's console/netgraph sources first
+
+Later: Game Instructor + screen guides, Fake CSM, Valve intro video.
