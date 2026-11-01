@@ -32,7 +32,7 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
 - [ ] 1.2 `rocketui` module: system interface, file interface (via IFileSystem), GLES3 renderer, input (touch + SDL)
 - [ ] 1.3 Client hooks under `USE_CSSOROCKETUI`: load `RocketUI001` interface, frame/render calls, input routing, device-lost handling
 - [ ] 1.4 Main menu document + options panel, loadout entry in main menu (backed by existing `cs_loadout` / `loadout_*` cvars)
-- [ ] 1.5 Adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names, ship under `csso/rocketui/` (done: raw copy of Kisak-Strike-Files `csgo/rocketui`, 19 files, still CS:GO names inside)
+- [ ] 1.5 Adapt Kisak-Strike-Files `.rml/.rcss` to CS:SO element names, ship under `csso/rocketui/` (game files live in the `game-files` release as `csso-rocketui.zip`, not in this repo; still CS:GO names inside)
 - [ ] 1.6 HUD documents (chat, killfeed, scoreboard, radar, roundtimer, buymenu, teammenu, loading screen, pause menu)
 
 Later: Game Instructor + screen guides, CS:GO style net_graph, Fake CSM, Valve intro video.
