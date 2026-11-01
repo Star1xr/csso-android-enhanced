@@ -1,0 +1,72 @@
+<rml>
+	<head>
+		<title>Options</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body
+			{
+				left: 6%;
+				top: 6%;
+				width: 88%;
+				height: 88%;
+				padding: 20px 28px;
+				background-color: #14181cf0;
+			}
+			#columns { position: absolute; left: 28px; right: 28px; top: 78px; bottom: 100px; overflow-y: auto; }
+			.col { display: block; float: left; width: 48%; margin-right: 2%; }
+			#buttons { position: absolute; left: 28px; bottom: 20px; }
+			#hint { position: absolute; left: 28px; bottom: 82px; }
+		</style>
+	</head>
+	<body>
+		<h1>Options</h1>
+		<div id="columns">
+			<div class="col">
+				<h2>Video</h2>
+				<KisakConvarSettingEnum convar="mat_picmip" desc="Texture detail" enum-values-count="3"
+					enum-value-0="0" enum-name-0="High"
+					enum-value-1="1" enum-name-1="Medium"
+					enum-value-2="2" enum-name-2="Low"/>
+				<KisakConvarSettingEnum convar="mat_forceaniso" desc="Texture filtering" enum-values-count="5"
+					enum-value-0="1" enum-name-0="Bilinear"
+					enum-value-1="2" enum-name-1="Anisotropic 2x"
+					enum-value-2="4" enum-name-2="Anisotropic 4x"
+					enum-value-3="8" enum-name-3="Anisotropic 8x"
+					enum-value-4="16" enum-name-4="Anisotropic 16x"/>
+				<KisakConvarSettingEnum convar="mat_antialias" desc="Anti-aliasing" enum-values-count="3"
+					enum-value-0="0" enum-name-0="Off"
+					enum-value-1="4" enum-name-1="MSAA 4x"
+					enum-value-2="8" enum-name-2="MSAA 8x"/>
+				<KisakConvarSettingEnum convar="mat_queue_mode" desc="Multicore rendering" enum-values-count="2"
+					enum-value-0="-1" enum-name-0="Enabled"
+					enum-value-1="0" enum-name-1="Disabled"/>
+				<KisakConvarSettingEnum convar="mat_vsync" desc="Wait for vertical sync" enum-values-count="2"
+					enum-value-0="0" enum-name-0="Off"
+					enum-value-1="1" enum-name-1="On"/>
+				<KisakConvarSettingEnum convar="fps_max" desc="Max FPS" enum-values-count="4"
+					enum-value-0="0" enum-name-0="Unlimited"
+					enum-value-1="60" enum-name-1="60"
+					enum-value-2="90" enum-name-2="90"
+					enum-value-3="120" enum-name-3="120"/>
+			</div>
+			<div class="col">
+				<h2>Game</h2>
+				<KisakConvarSettingSlider convar="fov_desired" desc="Field of view" slider-min="70" slider-max="90" slider-step="1"/>
+				<KisakConvarSettingSlider convar="sensitivity" desc="Mouse / look sensitivity" slider-min="0.5" slider-max="10" slider-step="0.1"/>
+				<KisakConvarSettingSlider convar="mat_monitorgamma" desc="Brightness (gamma)" slider-min="1.6" slider-max="2.6" slider-step="0.05"/>
+				<h2>Audio</h2>
+				<KisakConvarSettingSlider convar="volume" desc="Master volume" slider-min="0" slider-max="1" slider-step="0.05"/>
+				<KisakConvarSettingSlider convar="snd_musicvolume" desc="Music volume" slider-min="0" slider-max="1" slider-step="0.05"/>
+				<KisakConvarSettingEnum convar="net_graph" desc="Net graph" enum-values-count="3"
+					enum-value-0="0" enum-name-0="Off"
+					enum-value-1="1" enum-name-1="Simple"
+					enum-value-2="3" enum-name-2="Full"/>
+			</div>
+		</div>
+		<div id="hint" class="muted">Changes apply immediately. Press Save to keep them in your config.</div>
+		<div id="buttons">
+			<div class="btn small" id="save">Save</div>
+			<div class="btn small" id="close">Close</div>
+		</div>
+	</body>
+</rml>

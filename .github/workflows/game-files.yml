@@ -1,4 +1,5 @@
-# Packs the RocketUI game files (NOT source code) from Kisak-Strike-Files as csso/rocketui and publishes them as a release asset.
+# Packs the RocketUI game files (NOT source code) as csso/rocketui and publishes them as a release asset.
+# Fonts + images come from Kisak-Strike-Files, the CS:SO .rml/.rcss documents come from rocketui/data/ in this repo.
 name: Game files release
 
 on:
@@ -11,10 +12,13 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Pack csgo/rocketui as csso/rocketui
+      - uses: actions/checkout@v4
+      - name: Pack csso/rocketui (Kisak fonts+images, CS:SO documents)
         run: |
           git clone --depth 1 https://github.com/SwagSoftware/Kisak-Strike-Files ksf
-          mkdir -p pack/csso && cp -r ksf/csgo/rocketui pack/csso/rocketui
+          mkdir -p pack/csso/rocketui
+          cp -r ksf/csgo/rocketui/fonts ksf/csgo/rocketui/images pack/csso/rocketui/
+          cp -r rocketui/data/. pack/csso/rocketui/
           (cd pack && zip -qr ../csso-rocketui.zip csso)
           unzip -l csso-rocketui.zip | tail -3
       - name: Publish release

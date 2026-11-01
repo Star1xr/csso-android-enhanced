@@ -57,6 +57,11 @@ public:
 
 	// The pause menu registers itself here so ESC can toggle it
 	virtual void RegisterPauseMenu( TogglePauseMenuFn showPauseMenuFunc ) = 0;
+
+	// Options panel (module owned, convar controls). Opened from the main menu and from the client's pause menu.
+	virtual void ShowOptionsPanel( bool show ) = 0;
+	// Short message that fades out after \a timeout seconds.
+	virtual void ShowPopup( const char *text, float timeout ) = 0;
 };
 
 extern IRocketUI *g_pRocketUI; // defined by the client

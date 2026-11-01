@@ -4,6 +4,8 @@
 #include "rocketrender.h"
 #include "rocketfilesystem.h"
 #include "rocketkeys.h"
+#include "customelements.h"
+#include "rkmenu.h"
 
 #include <RmlUi/Core.h>
 
@@ -119,6 +121,8 @@ InitReturnVal_t RocketUIImpl::Init( void )
 	}
 	m_bRmlInitialised = true;
 
+	RocketUI_RegisterCustomElements();
+
 	if ( !LoadFonts() )
 	{
 		Warning( "RocketUI: Failed to load fonts (is csso/rocketui/ installed?).\n" );
@@ -136,12 +140,16 @@ InitReturnVal_t RocketUIImpl::Init( void )
 	m_ctxMenu->SetDensityIndependentPixelRatio( 1.0f );
 	m_ctxHud->SetDensityIndependentPixelRatio( 1.0f );
 
-	// TODO 1.4: register custom elements (convar sliders/enums, URL) from Kisak's customelements/
+	// The main menu is optional: without csso/rocketui/ the engine keeps the old vgui menu (Init fails above on fonts).
+	if ( !RocketMenu::Init( m_pEngine ) )
+		Warning( "RocketUI: main menu document missing, menu will be empty\n" );
+
 	return INIT_OK;
 }
 
 void RocketUIImpl::Shutdown()
 {
+	RocketMenu::Shutdown();
 	if ( m_bRmlInitialised )
 	{
 		Rml::Shutdown(); // destroys all contexts, releases fonts/textures
@@ -219,6 +227,18 @@ void RocketUIImpl::RunFrame( float time )
 		m_ctxHud->Update();
 	if ( m_ctxMenu )
 		m_ctxMenu->Update();
+
+	RocketMenu::Frame( m_pEngine && m_pEngine->IsInGame(), time );
+}
+
+void RocketUIImpl::ShowOptionsPanel( bool show )
+{
+	RocketMenu::ShowOptions( show );
+}
+
+void RocketUIImpl::ShowPopup( const char *text, float timeout )
+{
+	RocketMenu::ShowPopup( text, timeout );
 }
 
 void RocketUIImpl::DenyInputToGame( bool value, const char *why )

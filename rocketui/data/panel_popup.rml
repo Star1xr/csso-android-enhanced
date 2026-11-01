@@ -1,0 +1,22 @@
+<rml>
+	<head>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body
+			{
+				left: 30%;
+				top: 12%;
+				width: 40%;
+				height: auto;
+				padding: 14px 20px;
+				background-color: #14181ccc;
+				color: #ffffff;
+				text-align: center;
+				font-size: 26px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="text"></div>
+	</body>
+</rml>

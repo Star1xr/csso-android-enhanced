@@ -42,6 +42,8 @@ public:
 	Rml::Context *AccessHudContext() override { return m_ctxHud; }
 	Rml::Context *AccessMenuContext() override { return m_ctxMenu; }
 	void RegisterPauseMenu( TogglePauseMenuFn fn ) override { m_togglePauseMenuFunc = fn; }
+	void ShowOptionsPanel( bool show ) override;
+	void ShowPopup( const char *text, float timeout ) override;
 
 	float GetTime() const { return m_fTime; }
 

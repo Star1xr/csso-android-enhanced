@@ -1,0 +1,60 @@
+<rml>
+	<head>
+		<title>CS:SO</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body
+			{
+				width: 100%;
+				height: 100%;
+			}
+			#side
+			{
+				position: absolute;
+				left: 0;
+				top: 0;
+				bottom: 0;
+				width: 420px;
+				padding: 34px 30px;
+				background-color: #14181ce6;
+			}
+			#subtitle { margin-bottom: 26px; }
+			#play-box { margin-bottom: 16px; padding: 14px 0 0 0; }
+			#footer
+			{
+				position: absolute;
+				left: 30px;
+				bottom: 18px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="side">
+			<h1>Counter-Strike</h1>
+			<div id="subtitle" class="muted">Source Online</div>
+
+			<div id="play-box">
+				<h2>Play</h2>
+				<select id="map_select" value="de_dust2">
+					<option value="de_dust2">de_dust2</option>
+					<option value="de_dust">de_dust</option>
+					<option value="de_aztec">de_aztec</option>
+					<option value="de_inferno">de_inferno</option>
+					<option value="de_nuke">de_nuke</option>
+					<option value="de_train">de_train</option>
+					<option value="de_cbble">de_cbble</option>
+					<option value="cs_office">cs_office</option>
+					<option value="cs_italy">cs_italy</option>
+					<option value="cs_assault">cs_assault</option>
+				</select>
+				<div class="btn" id="menu_start">Start game</div>
+			</div>
+
+			<div class="btn" id="menu_options">Options</div>
+			<div class="btn" id="menu_console">Console</div>
+			<div class="btn" id="menu_quit">Quit</div>
+
+			<div id="footer" class="muted">Powered by <KisakURL url="https://github.com/mikke89/RmlUi" text="RmlUi"/></div>
+		</div>
+	</body>
+</rml>

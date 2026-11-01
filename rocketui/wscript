@@ -19,6 +19,8 @@ def build(bld):
 		'rocketsystem.cpp',
 		'rocketfilesystem.cpp',
 		'rocketrenderGLES.cpp',
+		'customelements.cpp',
+		'rkmenu.cpp',
 	]
 
 	includes = [
