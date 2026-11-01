@@ -17,7 +17,8 @@ runs:
       run: sudo apt-get update && sudo apt-get install -y ccache
 
     - name: Restore toolchain cache
-      uses: actions/cache@v4
+      id: toolchain
+      uses: actions/cache/restore@v4
       with:
         path: |
           android-ndk-r10e
@@ -37,6 +38,15 @@ runs:
         CCACHE_MAXSIZE: 2G
         CCACHE_COMPILERCHECK: string:llvm-11.1.0
       run: scripts/${{ inputs.script }}
+
+    - name: Save toolchain cache
+      if: always() && steps.toolchain.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          android-ndk-r10e
+          clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04
+        key: android-toolchain-v1
 
     - name: Save ccache
       if: always()
