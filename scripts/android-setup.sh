@@ -19,6 +19,6 @@ export PATH="$PWD/$LLVM/bin:$PATH"
 
 # rmlui is only a waf target when configured with --rocketui
 case "$WAF_EXTRA" in
-	*--rocketui*) EXTRA_TARGETS=,rmlui ;;
+	*--rocketui*) EXTRA_TARGETS=,rmlui,rocketui_client ;;
 	*) EXTRA_TARGETS= ;;
 esac

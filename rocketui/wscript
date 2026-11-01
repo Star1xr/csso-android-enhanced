@@ -1,0 +1,49 @@
+#! /usr/bin/env python
+# encoding: utf-8
+
+# RocketUI (RmlUi) client module: librocketui_client.so. Built only with --rocketui, Android (GLES3) only for now.
+
+top = '.'
+PROJECT_NAME = 'rocketui_client'
+
+def options(opt):
+	# stub
+	return
+
+def configure(conf):
+	return
+
+def build(bld):
+	source = [
+		'rocketuiimpl.cpp',
+		'rocketsystem.cpp',
+		'rocketfilesystem.cpp',
+		'rocketrenderGLES.cpp',
+	]
+
+	includes = [
+		'.',
+		'../public',
+		'../public/tier0',
+		'../public/tier1',
+		'../rmlui/Include',
+		'../common',
+	]
+
+	defines = ['RMLUI_STATIC_LIB']
+	libs = ['tier0', 'tier1', 'tier2', 'tier3', 'vstdlib', 'rmlui', 'FT2']
+
+	bld.shlib(
+		source   = source,
+		target   = PROJECT_NAME,
+		name     = PROJECT_NAME,
+		features = 'c cxx',
+		includes = includes,
+		defines  = defines,
+		cxxflags = ['-std=c++14', '-include', 'cstdint'],
+		use      = libs,
+		lib      = ['GLESv3'],
+		install_path = bld.env.LIBDIR,
+		subsystem = bld.env.MSVC_SUBSYSTEM,
+		idx      = bld.get_taskgen_count()
+	)
