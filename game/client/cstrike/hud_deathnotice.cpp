@@ -21,11 +21,6 @@
 #include "clientmode_csnormal.h"
 #include "c_cs_player.h"
 #include "c_cs_playerresource.h"
-#include "csso_ui_config.h"
-
-#if defined( USE_CSSOROCKETUI )
-#include "rocketui/rocketui.h"
-#endif
 
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -200,17 +195,6 @@ void CHudDeathNotice::VidInit( void )
 //-----------------------------------------------------------------------------
 bool CHudDeathNotice::ShouldDraw( void )
 {
-#if defined( USE_CSSOROCKETUI )
-	// The RocketUI killfeed listens to the same player_death event. Keep the
-	// legacy panel as a fallback if the module or its HUD context is unavailable.
-	if ( RocketUI() && RocketUI()->AccessHudContext() )
-	{
-		static ConVarRef rocketEnable( "rocket_enable" );
-		if ( !rocketEnable.IsValid() || rocketEnable.GetBool() )
-			return false;
-	}
-#endif
-
 	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
 
 	if ( !pPlayer )

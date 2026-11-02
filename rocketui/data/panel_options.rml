@@ -65,7 +65,6 @@
 		</div>
 		<div id="hint" class="muted">Changes apply immediately. Press Save to keep them in your config.</div>
 		<div id="buttons">
-			<div class="btn small" id="loadout">Loadout</div>
 			<div class="btn small" id="save">Save</div>
 			<div class="btn small" id="close">Close</div>
 		</div>
