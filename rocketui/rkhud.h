@@ -20,6 +20,8 @@ namespace RocketHud
 	void AddKill( const RocketHudKill_t &kill );
 	void ChatAdd( const RocketHudChat_t &line );
 	void ChatOpen( bool teamOnly );
+	void ScoreboardShow( bool show );
+	void ScoreboardSet( const RocketHudScoreboard_t &data );
 	void Reset();
 }
 

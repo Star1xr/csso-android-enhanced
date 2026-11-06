@@ -288,6 +288,103 @@ namespace
 		}
 		s_chatLines.Purge();
 	}
+
+	// ---- scoreboard ----
+	Rml::ElementDocument *s_pSbDoc = NULL;
+	Rml::Element *s_sbCtScore = NULL, *s_sbTScore = NULL, *s_sbCtRows = NULL, *s_sbTRows = NULL, *s_sbSpec = NULL;
+	bool s_bSbShown = false;
+	Rml::String s_sbCtCache, s_sbTCache, s_sbSpecCache;
+	int s_sbScoreCache[2] = { -1, -1 };
+
+	void UnloadScoreboard();
+	void LoadScoreboard()
+	{
+		if ( s_pSbDoc )
+			return;
+		s_pSbDoc = RocketUIImpl::m_Instance.LoadDocumentFile( ROCKET_CONTEXT_HUD, "hud_scoreboard.rml", LoadScoreboard, UnloadScoreboard );
+		if ( !s_pSbDoc )
+		{
+			Warning( "RocketUI: couldn't load hud_scoreboard.rml\n" );
+			return;
+		}
+		s_sbCtScore = s_pSbDoc->GetElementById( "ct_score" );
+		s_sbTScore = s_pSbDoc->GetElementById( "t_score" );
+		s_sbCtRows = s_pSbDoc->GetElementById( "ct_rows" );
+		s_sbTRows = s_pSbDoc->GetElementById( "t_rows" );
+		s_sbSpec = s_pSbDoc->GetElementById( "spec" );
+		s_sbCtCache = s_sbTCache = s_sbSpecCache = "";
+		s_sbScoreCache[0] = s_sbScoreCache[1] = -1;
+		s_bSbShown = false;
+		s_pSbDoc->Hide();
+	}
+	void UnloadScoreboard()
+	{
+		if ( s_pSbDoc )
+			s_pSbDoc->Close();
+		s_pSbDoc = NULL;
+		s_sbCtScore = s_sbTScore = s_sbCtRows = s_sbTRows = s_sbSpec = NULL;
+		s_bSbShown = false;
+	}
+
+	// Rows of one team, best score first.
+	Rml::String BuildRows( const RocketHudScoreboard_t &d, int team )
+	{
+		int idx[ROCKET_HUD_MAX_PLAYERS];
+		int n = 0;
+		for ( int i = 0; i < d.numPlayers && i < ROCKET_HUD_MAX_PLAYERS; i++ )
+		{
+			if ( d.players[i].team == team )
+				idx[n++] = i;
+		}
+		for ( int i = 1; i < n; i++ ) // insertion sort, n <= 64
+		{
+			const int cur = idx[i];
+			int j = i - 1;
+			while ( j >= 0 && ( d.players[idx[j]].score < d.players[cur].score ||
+				( d.players[idx[j]].score == d.players[cur].score && d.players[idx[j]].kills < d.players[cur].kills ) ) )
+			{
+				idx[j + 1] = idx[j];
+				j--;
+			}
+			idx[j + 1] = cur;
+		}
+
+		Rml::String rml;
+		char num[16];
+		for ( int k = 0; k < n; k++ )
+		{
+			const RocketHudScoreEntry_t &p = d.players[idx[k]];
+			rml += "<div class=\"row";
+			if ( !p.alive )
+				rml += " dead";
+			if ( p.local )
+				rml += " me";
+			rml += "\"><span class=\"n\">";
+			rml += Rml::StringUtilities::EncodeRml( p.name );
+			rml += "</span>";
+			const int vals[5] = { p.kills, p.assists, p.deaths, p.score, p.ping };
+			for ( int v = 0; v < 5; v++ )
+			{
+				if ( v == 4 && p.bot )
+					Q_strncpy( num, "BOT", sizeof( num ) );
+				else
+					Q_snprintf( num, sizeof( num ), "%d", vals[v] );
+				rml += "<span class=\"v\">";
+				rml += num;
+				rml += "</span>";
+			}
+			rml += "</div>";
+		}
+		return rml;
+	}
+
+	void SetCached( Rml::Element *e, Rml::String &cache, const Rml::String &rml )
+	{
+		if ( !e || cache == rml )
+			return;
+		cache = rml;
+		e->SetInnerRML( rml );
+	}
 }
 
 bool RocketHud::Init( IVEngineClient *engine )
@@ -297,11 +394,15 @@ bool RocketHud::Init( IVEngineClient *engine )
 	LoadTimer();
 	LoadKillfeed();
 	LoadChat();
-	return s_d.info && s_d.timer && s_d.kill && s_pChatDoc;
+	LoadScoreboard();
+	return s_d.info && s_d.timer && s_d.kill && s_pChatDoc && s_pSbDoc;
 }
 
 void RocketHud::Shutdown()
 {
+	s_pSbDoc = NULL;
+	s_sbCtScore = s_sbTScore = s_sbCtRows = s_sbTRows = s_sbSpec = NULL;
+	s_bSbShown = false;
 	s_bChatOpen = s_bChatGrab = false;
 	s_chatLines.Purge();
 	s_pChatDoc = NULL;
@@ -525,8 +626,47 @@ CON_COMMAND( rocket_test_chat, "Add a fake chat line in RocketUI" )
 	RocketHud::ChatAdd( c );
 }
 
+void RocketHud::ScoreboardShow( bool show )
+{
+	ShowDoc( s_pSbDoc, s_bSbShown, show );
+}
+
+void RocketHud::ScoreboardSet( const RocketHudScoreboard_t &d )
+{
+	if ( !s_pSbDoc || !s_bSbShown )
+		return;
+
+	char buf[16];
+	if ( s_sbScoreCache[0] != d.scoreCT && s_sbCtScore )
+	{
+		s_sbScoreCache[0] = d.scoreCT;
+		Q_snprintf( buf, sizeof( buf ), "%d", d.scoreCT );
+		s_sbCtScore->SetInnerRML( buf );
+	}
+	if ( s_sbScoreCache[1] != d.scoreT && s_sbTScore )
+	{
+		s_sbScoreCache[1] = d.scoreT;
+		Q_snprintf( buf, sizeof( buf ), "%d", d.scoreT );
+		s_sbTScore->SetInnerRML( buf );
+	}
+
+	SetCached( s_sbCtRows, s_sbCtCache, BuildRows( d, ROCKET_TEAM_CT ) );
+	SetCached( s_sbTRows, s_sbTCache, BuildRows( d, ROCKET_TEAM_T ) );
+
+	Rml::String spec;
+	for ( int i = 0; i < d.numPlayers && i < ROCKET_HUD_MAX_PLAYERS; i++ )
+	{
+		if ( d.players[i].team != ROCKET_TEAM_SPECTATOR )
+			continue;
+		spec += spec.empty() ? "Spectators: " : ", ";
+		spec += Rml::StringUtilities::EncodeRml( d.players[i].name );
+	}
+	SetCached( s_sbSpec, s_sbSpecCache, spec );
+}
+
 void RocketHud::Reset()
 {
+	ShowDoc( s_pSbDoc, s_bSbShown, false );
 	ChatClose();
 	ClearChat();
 	ClearKills();

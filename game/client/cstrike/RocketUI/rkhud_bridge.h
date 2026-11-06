@@ -17,6 +17,10 @@ bool RocketHud_OnChatPrintf( int iPlayerIndex, const char *msg );
 // Returns true when RocketUI opened its own typing line, the vgui one must not open.
 bool RocketHud_OnChatOpen( bool teamOnly );
 
+// Scoreboard (CCSClientScoreBoardDialog::ShowPanel hook). show=true returns true when RocketUI shows it, the vgui panel
+// must then stay closed. show=false always hides the RocketUI one and returns false so vgui can close itself too.
+bool RocketHud_OnScoreboardShow( bool show );
+
 // First line of a vgui HUD panel's ShouldDraw(): hides the old panel while RocketUI draws the same thing.
 #define ROCKET_HUD_HIDE_VGUI() do { if ( RocketHud_IsActive() ) return false; } while ( 0 )
 

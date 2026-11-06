@@ -265,6 +265,18 @@ void RocketUIImpl::HudChatAdd( const RocketHudChat_t &line )
 		RocketHud::ChatAdd( line );
 }
 
+void RocketUIImpl::HudScoreboardShow( bool show )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::ScoreboardShow( show );
+}
+
+void RocketUIImpl::HudScoreboardSet( const RocketHudScoreboard_t &data )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::ScoreboardSet( data );
+}
+
 void RocketUIImpl::HudChatOpen( bool teamOnly )
 {
 	if ( rocket_enable.GetBool() )

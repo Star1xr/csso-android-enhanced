@@ -91,6 +91,31 @@ struct RocketHudChat_t
 	int team;               // RocketHudTeam_t of the sender
 };
 
+#define ROCKET_HUD_MAX_PLAYERS 64
+
+struct RocketHudScoreEntry_t
+{
+	char name[ROCKET_HUD_NAME_LEN];
+	int team;               // RocketHudTeam_t
+	int kills;
+	int assists;
+	int deaths;
+	int score;
+	int mvps;
+	int ping;
+	bool alive;
+	bool local;
+	bool bot;
+};
+
+struct RocketHudScoreboard_t
+{
+	int numPlayers;
+	RocketHudScoreEntry_t players[ROCKET_HUD_MAX_PLAYERS];
+	int scoreCT;
+	int scoreT;
+};
+
 class IRocketUI : public IAppSystem
 {
 public:
@@ -132,6 +157,9 @@ public:
 	virtual void HudSetStatus( const RocketHudStatus_t &status ) = 0;
 	virtual void HudAddKill( const RocketHudKill_t &kill ) = 0;
 	virtual void HudChatAdd( const RocketHudChat_t &line ) = 0;
+	virtual void HudScoreboardShow( bool show ) = 0;
+	// Only needed while the scoreboard is shown; the client sends it a few times per second.
+	virtual void HudScoreboardSet( const RocketHudScoreboard_t &data ) = 0;
 	// Opens the typing line (messagemode / messagemode2). The module sends say / say_team itself.
 	virtual void HudChatOpen( bool teamOnly ) = 0;
 	// Level change / disconnect: drop killfeed, chat history, ...
