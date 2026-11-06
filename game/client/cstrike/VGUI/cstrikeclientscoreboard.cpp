@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "../RocketUI/rkhud_bridge.h"
 #include "hud.h"
 #include "cstrikeclientscoreboard.h"
 #include "c_cs_team.h"
@@ -1107,6 +1108,12 @@ void CCSClientScoreBoardDialog::ShowPanel( bool state )
 {
 	if ( m_bForceShow && !state )
 		return;
+
+#if defined( USE_CSSOROCKETUI )
+	// RocketUI draws the scoreboard; the vgui panel stays closed.
+	if ( RocketHud_OnScoreboardShow( state ) )
+		return;
+#endif
 
 #if SCOREBOARD_MOUSE_INPUT
 	SetMouseInputEnabled( false ); // always disable it before showing the panel since clientmode might have enabled it

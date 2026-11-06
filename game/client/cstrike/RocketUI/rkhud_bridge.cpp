@@ -151,6 +151,61 @@ bool RocketHud_OnChatPrintf( int iPlayerIndex, const char *msg )
 	return true;
 }
 
+static bool s_bScoreboardWanted = false;
+static float s_flNextScoreboard = 0.0f;
+
+bool RocketHud_OnScoreboardShow( bool show )
+{
+	IRocketUI *pRocket = RocketUI_ClientGet();
+	if ( !show )
+	{
+		s_bScoreboardWanted = false;
+		if ( pRocket )
+			pRocket->HudScoreboardShow( false );
+		return false;
+	}
+
+	if ( !RocketHud_IsActive() )
+		return false;
+
+	s_bScoreboardWanted = true;
+	s_flNextScoreboard = 0.0f; // send data on the next Update
+	pRocket->HudScoreboardShow( true );
+	return true;
+}
+
+static void FillScoreboard( RocketHudScoreboard_t &d )
+{
+	memset( &d, 0, sizeof( d ) );
+	if ( !g_PR )
+		return;
+
+	C_CS_PlayerResource *pCSPR = dynamic_cast<C_CS_PlayerResource *>( g_PR );
+	for ( int i = 1; i <= gpGlobals->maxClients && d.numPlayers < ROCKET_HUD_MAX_PLAYERS; i++ )
+	{
+		if ( !g_PR->IsConnected( i ) || g_PR->IsHLTV( i ) || g_PR->IsReplay( i ) )
+			continue;
+
+		RocketHudScoreEntry_t &e = d.players[d.numPlayers++];
+		V_strncpy( e.name, g_PR->GetPlayerName( i ), sizeof( e.name ) );
+		e.team = TeamToRocket( g_PR->GetTeam( i ) );
+		e.kills = g_PR->GetFrags( i );
+		e.assists = g_PR->GetAssists( i );
+		e.deaths = g_PR->GetDeaths( i );
+		e.score = g_PR->GetPlayerScore( i );
+		e.mvps = pCSPR ? pCSPR->GetNumMVPs( i ) : 0;
+		e.ping = g_PR->GetPing( i );
+		e.alive = g_PR->IsAlive( i );
+		e.local = g_PR->IsLocalPlayer( i );
+		e.bot = g_PR->IsFakePlayer( i );
+	}
+
+	C_Team *pCT = GetGlobalTeam( TEAM_CT );
+	C_Team *pT = GetGlobalTeam( TEAM_TERRORIST );
+	d.scoreCT = pCT ? pCT->Get_Score() : 0;
+	d.scoreT = pT ? pT->Get_Score() : 0;
+}
+
 bool RocketHud_OnChatOpen( bool teamOnly )
 {
 	if ( !RocketHud_IsActive() )
@@ -171,6 +226,7 @@ public:
 
 	virtual void LevelShutdownPreEntity()
 	{
+		s_bScoreboardWanted = false;
 		StopListeningForAllEvents();
 		if ( IRocketUI *pRocket = RocketUI_ClientGet() )
 			pRocket->HudReset();
@@ -185,6 +241,15 @@ public:
 		RocketHudStatus_t status;
 		FillStatus( status );
 		pRocket->HudSetStatus( status );
+
+		// The scoreboard only needs fresh data a few times per second.
+		if ( s_bScoreboardWanted && gpGlobals->curtime >= s_flNextScoreboard )
+		{
+			s_flNextScoreboard = gpGlobals->curtime + 0.25f;
+			static RocketHudScoreboard_t scoreboard; // ~7 KB, not for the stack
+			FillScoreboard( scoreboard );
+			pRocket->HudScoreboardSet( scoreboard );
+		}
 	}
 
 	virtual void FireGameEvent( IGameEvent *event )
