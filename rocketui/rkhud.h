@@ -5,10 +5,12 @@
 
 #include "rocketui/rocketui.h"
 
+class IVEngineClient;
+
 namespace RocketHud
 {
 	// Loads the HUD documents into the hud context. Call after contexts, fonts and custom elements exist.
-	bool Init();
+	bool Init( IVEngineClient *engine );
 	// Contexts are destroyed by Rml::Shutdown, this only forgets our pointers.
 	void Shutdown();
 	// Once per frame: killfeed lifetime.
@@ -16,6 +18,8 @@ namespace RocketHud
 
 	void SetStatus( const RocketHudStatus_t &status );
 	void AddKill( const RocketHudKill_t &kill );
+	void ChatAdd( const RocketHudChat_t &line );
+	void ChatOpen( bool teamOnly );
 	void Reset();
 }
 

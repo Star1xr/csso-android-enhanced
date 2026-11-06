@@ -145,7 +145,7 @@ InitReturnVal_t RocketUIImpl::Init( void )
 	if ( !RocketMenu::Init( m_pEngine ) )
 		Warning( "RocketUI: main menu document missing, menu will be empty\n" );
 
-	if ( !RocketHud::Init() )
+	if ( !RocketHud::Init( m_pEngine ) )
 		Warning( "RocketUI: some HUD documents are missing (is csso/rocketui/ up to date?)\n" );
 
 	return INIT_OK;
@@ -257,6 +257,18 @@ void RocketUIImpl::HudAddKill( const RocketHudKill_t &kill )
 {
 	if ( rocket_enable.GetBool() )
 		RocketHud::AddKill( kill );
+}
+
+void RocketUIImpl::HudChatAdd( const RocketHudChat_t &line )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::ChatAdd( line );
+}
+
+void RocketUIImpl::HudChatOpen( bool teamOnly )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::ChatOpen( teamOnly );
 }
 
 void RocketUIImpl::HudReset()
@@ -416,6 +428,10 @@ bool RocketUIImpl::HandleInputEvent( const InputEvent_t &event )
 		m_ctxCurrent->ProcessMouseButtonUp( 0, 0 );
 		break;
 	}
+
+	case IE_FirstVguiEvent + 3: // vgui IE_KeyTyped: m_nData is the typed character
+		HandleTextInput( event.m_nData );
+		break;
 
 	default:
 		return false;

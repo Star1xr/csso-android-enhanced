@@ -83,6 +83,14 @@ struct RocketHudKill_t
 	bool localVictim;       // highlight: the local player died
 };
 
+// One chat line. name is empty for server messages; text already has the CS color control characters stripped.
+struct RocketHudChat_t
+{
+	char name[ROCKET_HUD_NAME_LEN];
+	char text[256];
+	int team;               // RocketHudTeam_t of the sender
+};
+
 class IRocketUI : public IAppSystem
 {
 public:
@@ -123,6 +131,9 @@ public:
 	// Once per frame from the client, before RenderHUDFrame().
 	virtual void HudSetStatus( const RocketHudStatus_t &status ) = 0;
 	virtual void HudAddKill( const RocketHudKill_t &kill ) = 0;
+	virtual void HudChatAdd( const RocketHudChat_t &line ) = 0;
+	// Opens the typing line (messagemode / messagemode2). The module sends say / say_team itself.
+	virtual void HudChatOpen( bool teamOnly ) = 0;
 	// Level change / disconnect: drop killfeed, chat history, ...
 	virtual void HudReset() = 0;
 };

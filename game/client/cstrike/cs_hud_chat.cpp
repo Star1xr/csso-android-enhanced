@@ -5,6 +5,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "RocketUI/rkhud_bridge.h"
 #include "cstrikespectatorgui.h"
 #include "cs_hud_chat.h"
 #include "c_cs_player.h"
@@ -87,6 +88,8 @@ CHudChat::CHudChat( const char *pElementName ) : BaseClass( pElementName )
 
 bool CHudChat::ShouldDraw()
 {
+	ROCKET_HUD_HIDE_VGUI();
+
 	if ( cl_draw_only_deathnotices.GetBool() )
 		return false;
 
@@ -352,6 +355,11 @@ int CHudChat::GetFilterForString( const char *pString )
 
 void CHudChat::StartMessageMode( int iMessageModeType )
 {
+#if defined( USE_CSSOROCKETUI )
+	if ( RocketHud_OnChatOpen( iMessageModeType == MM_SAY_TEAM ) )
+		return;
+#endif
+
 	BaseClass::StartMessageMode(iMessageModeType);
 
 	vgui::ipanel()->SetTopmostPopup(GetVPanel(), true);

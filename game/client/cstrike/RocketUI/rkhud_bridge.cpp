@@ -11,6 +11,7 @@
 #include "weapon_csbase.h"
 #include "GameEventListener.h"
 #include "igamesystem.h"
+#include "hud_basechat.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -103,6 +104,59 @@ namespace
 		st.scoreCT = pCT ? pCT->Get_Score() : 0;
 		st.scoreT = pT ? pT->Get_Score() : 0;
 	}
+}
+
+bool RocketHud_OnChatPrintf( int iPlayerIndex, const char *msg )
+{
+	if ( !RocketHud_IsActive() || !msg )
+		return false;
+
+	RocketHudChat_t line;
+	memset( &line, 0, sizeof( line ) );
+
+	const char *p = msg;
+	while ( *p == '\n' )
+		p++;
+
+	// "\x03Name\x01 : text": the name is the part after the player-name color code.
+	if ( (unsigned char)*p == COLOR_PLAYERNAME )
+	{
+		p++;
+		const char *e = p;
+		while ( *e && !( (unsigned char)*e > 0 && (unsigned char)*e < COLOR_MAX ) )
+			e++;
+		V_strncpy( line.name, p, MIN( (int)( e - p ) + 1, (int)sizeof( line.name ) ) );
+		p = e;
+	}
+
+	// The rest: drop color control characters and newlines.
+	int n = 0;
+	for ( ; *p && n < (int)sizeof( line.text ) - 1; p++ )
+	{
+		const unsigned char c = (unsigned char)*p;
+		if ( c == '\n' || ( c > 0 && c < COLOR_MAX ) )
+			continue;
+		line.text[n++] = (char)c;
+	}
+	line.text[n] = 0;
+
+	if ( !line.name[0] && !line.text[0] )
+		return true;
+
+	if ( iPlayerIndex > 0 && g_PR )
+		line.team = TeamToRocket( g_PR->GetTeam( iPlayerIndex ) );
+
+	if ( IRocketUI *pRocket = RocketUI_ClientGet() )
+		pRocket->HudChatAdd( line );
+	return true;
+}
+
+bool RocketHud_OnChatOpen( bool teamOnly )
+{
+	if ( !RocketHud_IsActive() )
+		return false;
+	RocketUI_ClientGet()->HudChatOpen( teamOnly );
+	return true;
 }
 
 class CRocketHudSystem : public CAutoGameSystemPerFrame, public CGameEventListener

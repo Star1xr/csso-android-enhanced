@@ -46,6 +46,8 @@ public:
 	void ShowPopup( const char *text, float timeout ) override;
 	void HudSetStatus( const RocketHudStatus_t &status ) override;
 	void HudAddKill( const RocketHudKill_t &kill ) override;
+	void HudChatAdd( const RocketHudChat_t &line ) override;
+	void HudChatOpen( bool teamOnly ) override;
 	void HudReset() override;
 
 	float GetTime() const { return m_fTime; }

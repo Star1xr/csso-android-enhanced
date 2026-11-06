@@ -11,6 +11,12 @@
 // True when the RocketUI module is loaded, has its HUD context and rocket_enable is 1.
 bool RocketHud_IsActive();
 
+// Chat (hud_basechat.cpp / cs_hud_chat.cpp hooks). Both return false when RocketUI isn't drawing the HUD.
+// OnChatPrintf gets the raw ChatPrintf text (with CS color control characters) and the sender's player index (0: server).
+bool RocketHud_OnChatPrintf( int iPlayerIndex, const char *msg );
+// Returns true when RocketUI opened its own typing line, the vgui one must not open.
+bool RocketHud_OnChatOpen( bool teamOnly );
+
 // First line of a vgui HUD panel's ShouldDraw(): hides the old panel while RocketUI draws the same thing.
 #define ROCKET_HUD_HIDE_VGUI() do { if ( RocketHud_IsActive() ) return false; } while ( 0 )
 

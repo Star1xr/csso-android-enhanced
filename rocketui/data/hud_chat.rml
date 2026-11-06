@@ -1,0 +1,29 @@
+<rml>
+	<head>
+		<title>hud_chat</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body { width: 100%; height: 100%; pointer-events: none; }
+			#chat { position: absolute; left: 18px; bottom: 200px; width: 46%; }
+			.line { display: block; padding: 2px 10px; margin-bottom: 2px; background-color: #0c0f1299; font-size: 22px; color: #e6e6e6; }
+			.line.old { display: none; }
+			.name { color: #cfd6dd; }
+			.name.t { color: #e0a24a; }
+			.name.ct { color: #6aa9ff; }
+			.name.spec { color: #8b949e; }
+			.srv { color: #d9a441; }
+			#input_row { display: none; margin-top: 6px; padding: 6px 10px; background-color: #0c0f12e6; pointer-events: auto; }
+			#input_row.open { display: block; }
+			#prompt { color: #d9a441; font-size: 22px; margin-right: 8px; }
+			input { display: inline-block; width: 78%; height: 34px; line-height: 34px; padding: 0 8px; background-color: #1b2127; color: #ffffff; font-size: 22px; }
+		</style>
+	</head>
+	<body>
+		<div id="chat">
+			<div id="lines"></div>
+			<div id="input_row">
+				<span id="prompt">SAY</span><input type="text" id="chat_input" maxlength="120"/>
+			</div>
+		</div>
+	</body>
+</rml>

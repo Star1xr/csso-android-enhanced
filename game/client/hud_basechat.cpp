@@ -6,6 +6,9 @@
 //=============================================================================//
 
 #include "cbase.h"
+#if defined( USE_CSSOROCKETUI ) // only built with --rocketui, which is csso only
+#include "cstrike/RocketUI/rkhud_bridge.h"
+#endif
 #include "hud_basechat.h"
 
 #include <vgui/IScheme.h>
@@ -1836,6 +1839,11 @@ void CBaseHudChat::ChatPrintf( int iPlayerIndex, int iFilter, const char *fmt, .
 		if ( !(iFilter & GetFilterFlags() ) )
 			return;
 	}
+
+#if defined( USE_CSSOROCKETUI )
+	// RocketUI draws the chat; the vgui line below stays hidden (CHudChat::ShouldDraw).
+	RocketHud_OnChatPrintf( iPlayerIndex, pmsg );
+#endif
 
 	if ( *pmsg < 32 )
 	{

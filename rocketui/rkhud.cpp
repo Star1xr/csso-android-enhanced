@@ -7,6 +7,7 @@
 #include "tier1/convar.h"
 #include "tier1/strtools.h"
 #include "tier1/utlvector.h"
+#include "cdll_int.h"
 
 static ConVar rocket_hud_killfeed_time( "rocket_hud_killfeed_time", "6", 0, "Seconds a killfeed entry stays on screen" );
 static ConVar rocket_hud_killfeed_max( "rocket_hud_killfeed_max", "6", 0, "Max killfeed entries" );
@@ -166,18 +167,146 @@ namespace
 		rml += Rml::StringUtilities::EncodeRml( name );
 		rml += "</span>";
 	}
+
+	// ---- chat ----
+	IVEngineClient *s_pEngine = NULL;
+
+	struct ChatLine_t
+	{
+		Rml::Element *el;
+		float end;
+		bool old;
+	};
+	CUtlVector<ChatLine_t> s_chatLines;
+	Rml::ElementDocument *s_pChatDoc = NULL;
+	Rml::Element *s_chatList = NULL, *s_chatRow = NULL, *s_chatInput = NULL, *s_chatPrompt = NULL;
+	bool s_bChatOpen = false;
+	bool s_bChatTeam = false;
+	bool s_bChatGrab = false;
+
+	static ConVar rocket_hud_chat_time( "rocket_hud_chat_time", "10", 0, "Seconds a chat line stays visible while the chat is closed" );
+	static ConVar rocket_hud_chat_max( "rocket_hud_chat_max", "30", 0, "Max chat lines kept" );
+
+	void ChatClose()
+	{
+		if ( !s_bChatOpen )
+			return;
+		s_bChatOpen = false;
+		if ( s_chatRow )
+			s_chatRow->SetClass( "open", false );
+		if ( s_chatInput )
+			s_chatInput->Blur();
+		if ( s_bChatGrab )
+		{
+			s_bChatGrab = false;
+			RocketUIImpl::m_Instance.DenyInputToGame( false, "Chat" );
+		}
+	}
+
+	void ChatSubmit()
+	{
+		Rml::ElementFormControl *ctl = rmlui_dynamic_cast<Rml::ElementFormControl *>( s_chatInput );
+		if ( ctl && s_pEngine )
+		{
+			// The text goes into a console command: only printable characters, no quotes / separators / newlines.
+			const Rml::String value = ctl->GetValue();
+			char safe[160];
+			int n = 0;
+			for ( size_t i = 0; i < value.size() && n < (int)sizeof( safe ) - 1; i++ )
+			{
+				const unsigned char c = (unsigned char)value[i];
+				if ( c < 32 || c == '"' || c == ';' || c == 127 )
+					continue;
+				safe[n++] = (char)c;
+			}
+			safe[n] = 0;
+
+			if ( n > 0 )
+			{
+				char cmd[256];
+				Q_snprintf( cmd, sizeof( cmd ), "%s \"%s\"", s_bChatTeam ? "say_team" : "say", safe );
+				s_pEngine->ClientCmd_Unrestricted( cmd );
+			}
+			ctl->SetValue( "" );
+		}
+		ChatClose();
+	}
+
+	class ChatListener : public Rml::EventListener
+	{
+	public:
+		void ProcessEvent( Rml::Event &event ) override
+		{
+			if ( event.GetId() != Rml::EventId::Keydown )
+				return;
+			const int key = event.GetParameter<int>( "key_identifier", 0 );
+			if ( key == Rml::Input::KI_ESCAPE )
+				ChatClose();
+			else if ( key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER )
+				ChatSubmit();
+		}
+	};
+	ChatListener s_chatListener;
+
+	void UnloadChat();
+	void LoadChat()
+	{
+		if ( s_pChatDoc )
+			return;
+		s_pChatDoc = RocketUIImpl::m_Instance.LoadDocumentFile( ROCKET_CONTEXT_HUD, "hud_chat.rml", LoadChat, UnloadChat );
+		if ( !s_pChatDoc )
+		{
+			Warning( "RocketUI: couldn't load hud_chat.rml\n" );
+			return;
+		}
+		s_chatList = s_pChatDoc->GetElementById( "lines" );
+		s_chatRow = s_pChatDoc->GetElementById( "input_row" );
+		s_chatInput = s_pChatDoc->GetElementById( "chat_input" );
+		s_chatPrompt = s_pChatDoc->GetElementById( "prompt" );
+		s_pChatDoc->AddEventListener( Rml::EventId::Keydown, &s_chatListener );
+		s_pChatDoc->Show( Rml::ModalFlag::None, Rml::FocusFlag::None );
+	}
+	void UnloadChat()
+	{
+		ChatClose();
+		s_chatLines.Purge(); // the elements die with the document
+		if ( s_pChatDoc )
+		{
+			s_pChatDoc->RemoveEventListener( Rml::EventId::Keydown, &s_chatListener );
+			s_pChatDoc->Close();
+		}
+		s_pChatDoc = NULL;
+		s_chatList = s_chatRow = s_chatInput = s_chatPrompt = NULL;
+	}
+
+	void ClearChat()
+	{
+		for ( int i = 0; i < s_chatLines.Count(); i++ )
+		{
+			if ( s_chatList && s_chatLines[i].el )
+				s_chatList->RemoveChild( s_chatLines[i].el );
+		}
+		s_chatLines.Purge();
+	}
 }
 
-bool RocketHud::Init()
+bool RocketHud::Init( IVEngineClient *engine )
 {
+	s_pEngine = engine;
 	LoadInfobar();
 	LoadTimer();
 	LoadKillfeed();
-	return s_d.info && s_d.timer && s_d.kill;
+	LoadChat();
+	return s_d.info && s_d.timer && s_d.kill && s_pChatDoc;
 }
 
 void RocketHud::Shutdown()
 {
+	s_bChatOpen = s_bChatGrab = false;
+	s_chatLines.Purge();
+	s_pChatDoc = NULL;
+	s_chatList = s_chatRow = s_chatInput = s_chatPrompt = NULL;
+	s_pEngine = NULL;
 	s_kills.Purge();
 	memset( &s_d, 0, sizeof( s_d ) );
 	s_bInfoShown = s_bTimerShown = false;
@@ -193,6 +322,17 @@ void RocketHud::Frame( float time )
 			if ( s_d.list )
 				s_d.list->RemoveChild( s_kills[i].el );
 			s_kills.Remove( i );
+		}
+	}
+
+	// Chat lines fade away (display: none) once they are old and the typing line is closed.
+	for ( int i = 0; i < s_chatLines.Count(); i++ )
+	{
+		const bool wantOld = !s_bChatOpen && time >= s_chatLines[i].end;
+		if ( wantOld != s_chatLines[i].old )
+		{
+			s_chatLines[i].old = wantOld;
+			s_chatLines[i].el->SetClass( "old", wantOld );
 		}
 	}
 }
@@ -316,8 +456,79 @@ void RocketHud::AddKill( const RocketHudKill_t &k )
 	}
 }
 
+void RocketHud::ChatAdd( const RocketHudChat_t &c )
+{
+	if ( !s_pChatDoc || !s_chatList )
+		return;
+
+	Rml::String rml;
+	if ( c.name[0] )
+	{
+		rml += "<span class=\"name ";
+		rml += c.team == ROCKET_TEAM_CT ? "ct" : ( c.team == ROCKET_TEAM_T ? "t" : ( c.team == ROCKET_TEAM_SPECTATOR ? "spec" : "" ) );
+		rml += "\">";
+		rml += Rml::StringUtilities::EncodeRml( c.name );
+		rml += "</span>";
+		rml += Rml::StringUtilities::EncodeRml( c.text );
+	}
+	else
+	{
+		rml += "<span class=\"srv\">";
+		rml += Rml::StringUtilities::EncodeRml( c.text );
+		rml += "</span>";
+	}
+
+	Rml::ElementPtr entry = s_pChatDoc->CreateElement( "div" );
+	if ( !entry )
+		return;
+	entry->SetClass( "line", true );
+	entry->SetInnerRML( rml );
+	Rml::Element *el = s_chatList->AppendChild( std::move( entry ) );
+
+	ChatLine_t l = { el, s_fTime + rocket_hud_chat_time.GetFloat(), false };
+	s_chatLines.AddToTail( l );
+
+	const int maxLines = MAX( 5, rocket_hud_chat_max.GetInt() );
+	while ( s_chatLines.Count() > maxLines )
+	{
+		s_chatList->RemoveChild( s_chatLines[0].el );
+		s_chatLines.Remove( 0 );
+	}
+}
+
+void RocketHud::ChatOpen( bool teamOnly )
+{
+	if ( !s_pChatDoc || s_bChatOpen )
+		return;
+	s_bChatOpen = true;
+	s_bChatTeam = teamOnly;
+	if ( s_chatPrompt )
+		s_chatPrompt->SetInnerRML( teamOnly ? "TEAM" : "SAY" );
+	if ( s_chatRow )
+		s_chatRow->SetClass( "open", true );
+	if ( s_chatInput )
+		s_chatInput->Focus();
+	if ( !s_bChatGrab )
+	{
+		s_bChatGrab = true;
+		RocketUIImpl::m_Instance.DenyInputToGame( true, "Chat" );
+	}
+}
+
+CON_COMMAND( rocket_test_chat, "Add a fake chat line in RocketUI" )
+{
+	RocketHudChat_t c;
+	memset( &c, 0, sizeof( c ) );
+	Q_strncpy( c.name, "Player", sizeof( c.name ) );
+	Q_strncpy( c.text, " : hello from RocketUI", sizeof( c.text ) );
+	c.team = ROCKET_TEAM_CT;
+	RocketHud::ChatAdd( c );
+}
+
 void RocketHud::Reset()
 {
+	ChatClose();
+	ClearChat();
 	ClearKills();
 	ShowDoc( s_d.info, s_bInfoShown, false );
 	ShowDoc( s_d.timer, s_bTimerShown, false );
