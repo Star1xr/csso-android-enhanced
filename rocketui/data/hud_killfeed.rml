@@ -1,0 +1,20 @@
+<rml>
+	<head>
+		<title>hud_killfeed</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body { width: 100%; height: 100%; pointer-events: none; }
+			#list { position: absolute; right: 14px; top: 90px; width: 640px; text-align: right; }
+			.kill { display: block; margin-bottom: 6px; padding: 4px 14px; background-color: #0c0f12b3; font-size: 24px; }
+			.kill.me { border-right-width: 4px; border-right-color: #ff5a4d; background-color: #3a1514cc; }
+			.kill.dead { border-right-width: 4px; border-right-color: #8b949e; }
+			.t { color: #e0a24a; }
+			.ct { color: #6aa9ff; }
+			.gun { color: #cfd6dd; margin: 0 10px; }
+			.tag { color: #ffcf4d; margin-left: 8px; }
+		</style>
+	</head>
+	<body>
+		<div id="list"></div>
+	</body>
+</rml>

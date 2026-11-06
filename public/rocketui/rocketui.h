@@ -27,6 +27,62 @@ typedef void ( *LoadDocumentFn )( void );
 typedef void ( *UnloadDocumentFn )( void );
 typedef void ( *TogglePauseMenuFn )( void );
 
+
+// ---------------------------------------------------------------------------------------------
+// HUD data. The client DLL is built with the old toolchain (no C++14 library, so RmlUi headers can't
+// be included there). The client only fills these plain structs from the CS:SO game data and the
+// module (which owns every RmlUi document) draws them. No Rml types may appear below this line.
+// ---------------------------------------------------------------------------------------------
+#define ROCKET_HUD_NAME_LEN 64
+
+enum RocketHudTeam_t
+{
+	ROCKET_TEAM_UNASSIGNED = 0,
+	ROCKET_TEAM_SPECTATOR = 1,
+	ROCKET_TEAM_T = 2,
+	ROCKET_TEAM_CT = 3,
+};
+
+// Infobar (health, armor, ammo, money) + round timer. Filled every frame by the client.
+struct RocketHudStatus_t
+{
+	bool showInfobar;       // local (or observed) player is alive
+	int health;
+	int armor;
+	bool helmet;
+	bool defuser;
+	bool hasC4;
+	bool inBuyZone;
+	int clip;               // -1: this weapon shows no ammo (knife, ...)
+	int reserve;
+	char weapon[32];        // weapon alias without "weapon_"
+	int money;
+
+	bool showTimer;
+	float roundTimeLeft;    // seconds, <0: unknown
+	bool freezePeriod;
+	bool bombPlanted;
+	int scoreCT;
+	int scoreT;
+};
+
+struct RocketHudKill_t
+{
+	char attacker[ROCKET_HUD_NAME_LEN];
+	char victim[ROCKET_HUD_NAME_LEN];
+	char assister[ROCKET_HUD_NAME_LEN];
+	char weapon[32];        // event weapon name ("ak47", "knife", ...)
+	int attackerTeam;       // RocketHudTeam_t
+	int victimTeam;
+	bool headshot;
+	bool wallbang;
+	bool noscope;
+	bool blind;
+	bool suicide;           // world / self kill, no attacker shown
+	bool localAttacker;     // highlight: the local player got the kill
+	bool localVictim;       // highlight: the local player died
+};
+
 class IRocketUI : public IAppSystem
 {
 public:
@@ -62,6 +118,13 @@ public:
 	virtual void ShowOptionsPanel( bool show ) = 0;
 	// Short message that fades out after \a timeout seconds.
 	virtual void ShowPopup( const char *text, float timeout ) = 0;
+
+	// ---- HUD (step 1.4b). All of these are cheap no-ops while rocket_enable is 0. ----
+	// Once per frame from the client, before RenderHUDFrame().
+	virtual void HudSetStatus( const RocketHudStatus_t &status ) = 0;
+	virtual void HudAddKill( const RocketHudKill_t &kill ) = 0;
+	// Level change / disconnect: drop killfeed, chat history, ...
+	virtual void HudReset() = 0;
 };
 
 extern IRocketUI *g_pRocketUI; // defined by the client

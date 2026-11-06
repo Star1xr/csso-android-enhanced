@@ -5,6 +5,7 @@
 // $NoKeywords: $
 //=============================================================================//
 #include "cbase.h"
+#include "RocketUI/rkhud_bridge.h"
 #include "hudelement.h"
 #include "hud_macros.h"
 #include "c_playerresource.h"
@@ -195,6 +196,8 @@ void CHudDeathNotice::VidInit( void )
 //-----------------------------------------------------------------------------
 bool CHudDeathNotice::ShouldDraw( void )
 {
+	ROCKET_HUD_HIDE_VGUI();
+
 	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
 
 	if ( !pPlayer )

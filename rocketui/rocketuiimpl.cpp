@@ -6,6 +6,7 @@
 #include "rocketkeys.h"
 #include "customelements.h"
 #include "rkmenu.h"
+#include "rkhud.h"
 
 #include <RmlUi/Core.h>
 
@@ -144,12 +145,16 @@ InitReturnVal_t RocketUIImpl::Init( void )
 	if ( !RocketMenu::Init( m_pEngine ) )
 		Warning( "RocketUI: main menu document missing, menu will be empty\n" );
 
+	if ( !RocketHud::Init() )
+		Warning( "RocketUI: some HUD documents are missing (is csso/rocketui/ up to date?)\n" );
+
 	return INIT_OK;
 }
 
 void RocketUIImpl::Shutdown()
 {
 	RocketMenu::Shutdown();
+	RocketHud::Shutdown();
 	if ( m_bRmlInitialised )
 	{
 		Rml::Shutdown(); // destroys all contexts, releases fonts/textures
@@ -229,6 +234,7 @@ void RocketUIImpl::RunFrame( float time )
 		m_ctxMenu->Update();
 
 	RocketMenu::Frame( m_pEngine && m_pEngine->IsInGame(), time );
+	RocketHud::Frame( time );
 }
 
 void RocketUIImpl::ShowOptionsPanel( bool show )
@@ -239,6 +245,23 @@ void RocketUIImpl::ShowOptionsPanel( bool show )
 void RocketUIImpl::ShowPopup( const char *text, float timeout )
 {
 	RocketMenu::ShowPopup( text, timeout );
+}
+
+void RocketUIImpl::HudSetStatus( const RocketHudStatus_t &status )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::SetStatus( status );
+}
+
+void RocketUIImpl::HudAddKill( const RocketHudKill_t &kill )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::AddKill( kill );
+}
+
+void RocketUIImpl::HudReset()
+{
+	RocketHud::Reset();
 }
 
 void RocketUIImpl::DenyInputToGame( bool value, const char *why )

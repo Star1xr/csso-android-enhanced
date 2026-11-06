@@ -21,6 +21,7 @@ def build(bld):
 		'rocketrenderGLES.cpp',
 		'customelements.cpp',
 		'rkmenu.cpp',
+		'rkhud.cpp',
 	]
 
 	includes = [

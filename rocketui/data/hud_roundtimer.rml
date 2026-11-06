@@ -1,0 +1,24 @@
+<rml>
+	<head>
+		<title>hud_roundtimer</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body { width: 100%; height: 100%; pointer-events: none; }
+			#wrap { position: absolute; top: 10px; left: 50%; margin-left: -190px; width: 380px; height: 64px; background-color: #0c0f12b3; text-align: center; }
+			.score { position: absolute; top: 0; width: 100px; font-size: 40px; line-height: 64px; }
+			#ct { left: 0; color: #6aa9ff; }
+			#t { right: 0; color: #e0a24a; }
+			#time { position: absolute; left: 100px; width: 180px; top: 0; font-size: 42px; line-height: 64px; color: #ffffff; }
+			#time.freeze { color: #8b949e; }
+			#time.bomb { color: #ff5a4d; }
+			#time.low { color: #ffcf4d; }
+		</style>
+	</head>
+	<body>
+		<div id="wrap">
+			<div id="ct" class="score">0</div>
+			<div id="time">0:00</div>
+			<div id="t" class="score">0</div>
+		</div>
+	</body>
+</rml>

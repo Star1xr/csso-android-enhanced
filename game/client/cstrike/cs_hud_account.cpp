@@ -9,6 +9,7 @@
 // implementation of CHudAccount class
 //
 #include "cbase.h"
+#include "RocketUI/rkhud_bridge.h"
 #include "iclientmode.h"
 
 #include <KeyValues.h>
@@ -145,6 +146,8 @@ void CHudAccount::OnThink()
 
 bool CHudAccount::ShouldDraw()
 {
+	ROCKET_HUD_HIDE_VGUI();
+
 	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
 	if ( !pPlayer )
 		return false;

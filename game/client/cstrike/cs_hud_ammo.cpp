@@ -5,6 +5,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "RocketUI/rkhud_bridge.h"
 #include "hud.h"
 #include "hudelement.h"
 #include "hud_macros.h"
@@ -313,6 +314,8 @@ void CHudAmmo::OnThink()
 
 bool CHudAmmo::ShouldDraw()
 {
+	ROCKET_HUD_HIDE_VGUI();
+
 	if ( cl_draw_only_deathnotices.GetBool() )
 		return false;
 

@@ -44,6 +44,9 @@ public:
 	void RegisterPauseMenu( TogglePauseMenuFn fn ) override { m_togglePauseMenuFunc = fn; }
 	void ShowOptionsPanel( bool show ) override;
 	void ShowPopup( const char *text, float timeout ) override;
+	void HudSetStatus( const RocketHudStatus_t &status ) override;
+	void HudAddKill( const RocketHudKill_t &kill ) override;
+	void HudReset() override;
 
 	float GetTime() const { return m_fTime; }
 

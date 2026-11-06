@@ -288,7 +288,7 @@ IRocketUI *g_pRocketUI = NULL;
 static CSysModule *s_pRocketModule = NULL;
 static bool s_bRocketLookedUp = false;
 
-static IRocketUI *RocketUI_ClientGet()
+IRocketUI *RocketUI_ClientGet()
 {
 	if ( !s_bRocketLookedUp )
 	{

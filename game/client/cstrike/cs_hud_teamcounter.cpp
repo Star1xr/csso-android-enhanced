@@ -7,6 +7,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "RocketUI/rkhud_bridge.h"
 #include "iclientmode.h"
 #include "hudelement.h"
 #include "c_cs_player.h"
@@ -114,6 +115,8 @@ void CHudTeamCounter::Reset()
 
 bool CHudTeamCounter::ShouldDraw()
 {
+	ROCKET_HUD_HIDE_VGUI();
+
 	if ( cl_draw_only_deathnotices.GetBool() )
 		return false;
 
