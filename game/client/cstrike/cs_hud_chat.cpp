@@ -6,6 +6,7 @@
 
 #include "cbase.h"
 #include "RocketUI/rkhud_bridge.h"
+#include "iclientmode.h"
 #include "cstrikespectatorgui.h"
 #include "cs_hud_chat.h"
 #include "c_cs_player.h"
