@@ -89,7 +89,7 @@ namespace
 			}
 		}
 
-		CSGameRules *pRules = CSGameRules();
+		CCSGameRules *pRules = CSGameRules();
 		if ( pRules )
 		{
 			st.showTimer = true;
