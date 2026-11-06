@@ -99,7 +99,8 @@ namespace
 	{
 		if ( s_d.info )
 			s_d.info->Close();
-		s_d.info = s_d.hp = s_d.armor = s_d.armorLbl = s_d.clip = s_d.reserve = s_d.weapon = s_d.money = s_d.flags = NULL;
+		s_d.info = NULL;
+		s_d.hp = s_d.armor = s_d.armorLbl = s_d.clip = s_d.reserve = s_d.weapon = s_d.money = s_d.flags = NULL;
 		s_bInfoShown = false;
 	}
 
