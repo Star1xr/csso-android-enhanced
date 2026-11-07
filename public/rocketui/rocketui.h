@@ -116,6 +116,36 @@ struct RocketHudScoreboard_t
 	int scoreT;
 };
 
+#define ROCKET_HUD_MAX_RADAR 96
+
+enum RocketRadarType_t
+{
+	ROCKET_RADAR_FRIEND,
+	ROCKET_RADAR_FOE,
+	ROCKET_RADAR_SPEC_T,     // observers see team colors instead of friend / foe
+	ROCKET_RADAR_SPEC_CT,
+	ROCKET_RADAR_CARRIER,    // player carrying the bomb
+	ROCKET_RADAR_BOMB_PLANTED,
+	ROCKET_RADAR_BOMB_DROPPED,
+	ROCKET_RADAR_HOSTAGE,
+};
+
+struct RocketHudRadarEntry_t
+{
+	float x, y, z;          // world position
+	int type;               // RocketRadarType_t
+};
+
+// The radar is centered on the viewed player and rotates with his view yaw.
+struct RocketHudRadar_t
+{
+	bool show;
+	float localX, localY, localZ;
+	float localYaw;         // degrees
+	int num;
+	RocketHudRadarEntry_t entries[ROCKET_HUD_MAX_RADAR];
+};
+
 class IRocketUI : public IAppSystem
 {
 public:
@@ -157,6 +187,7 @@ public:
 	virtual void HudSetStatus( const RocketHudStatus_t &status ) = 0;
 	virtual void HudAddKill( const RocketHudKill_t &kill ) = 0;
 	virtual void HudChatAdd( const RocketHudChat_t &line ) = 0;
+	virtual void HudSetRadar( const RocketHudRadar_t &radar ) = 0;
 	virtual void HudScoreboardShow( bool show ) = 0;
 	// Only needed while the scoreboard is shown; the client sends it a few times per second.
 	virtual void HudScoreboardSet( const RocketHudScoreboard_t &data ) = 0;

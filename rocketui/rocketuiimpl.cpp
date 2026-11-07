@@ -265,6 +265,12 @@ void RocketUIImpl::HudChatAdd( const RocketHudChat_t &line )
 		RocketHud::ChatAdd( line );
 }
 
+void RocketUIImpl::HudSetRadar( const RocketHudRadar_t &radar )
+{
+	if ( rocket_enable.GetBool() )
+		RocketHud::SetRadar( radar );
+}
+
 void RocketUIImpl::HudScoreboardShow( bool show )
 {
 	if ( rocket_enable.GetBool() )

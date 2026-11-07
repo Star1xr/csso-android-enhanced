@@ -12,6 +12,9 @@
 #include "GameEventListener.h"
 #include "igamesystem.h"
 #include "hud_basechat.h"
+#include "hudelement.h"
+#include "hud_macros.h"
+#include "../VGUI/cstrikespectatorgui.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -152,6 +155,7 @@ bool RocketHud_OnChatPrintf( int iPlayerIndex, const char *msg )
 }
 
 static bool s_bScoreboardWanted = false;
+static float s_flNextRadar = 0.0f;
 static float s_flNextScoreboard = 0.0f;
 
 bool RocketHud_OnScoreboardShow( bool show )
@@ -241,6 +245,21 @@ public:
 		RocketHudStatus_t status;
 		FillStatus( status );
 		pRocket->HudSetStatus( status );
+
+		// Radar: 20 Hz is plenty for dots.
+		if ( gpGlobals->curtime >= s_flNextRadar )
+		{
+			s_flNextRadar = gpGlobals->curtime + 0.05f;
+			static RocketHudRadar_t radar; // ~1.5 KB
+			memset( &radar, 0, sizeof( radar ) );
+			if ( RocketHud_IsActive() )
+			{
+				CCSMapOverview *pOverview = (CCSMapOverview *)GET_HUDELEMENT( CCSMapOverview );
+				if ( pOverview )
+					pOverview->FillRocketRadar( radar );
+			}
+			pRocket->HudSetRadar( radar );
+		}
 
 		// The scoreboard only needs fresh data a few times per second.
 		if ( s_bScoreboardWanted && gpGlobals->curtime >= s_flNextScoreboard )

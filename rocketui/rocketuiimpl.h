@@ -47,6 +47,7 @@ public:
 	void HudSetStatus( const RocketHudStatus_t &status ) override;
 	void HudAddKill( const RocketHudKill_t &kill ) override;
 	void HudChatAdd( const RocketHudChat_t &line ) override;
+	void HudSetRadar( const RocketHudRadar_t &radar ) override;
 	void HudScoreboardShow( bool show ) override;
 	void HudScoreboardSet( const RocketHudScoreboard_t &data ) override;
 	void HudChatOpen( bool teamOnly ) override;

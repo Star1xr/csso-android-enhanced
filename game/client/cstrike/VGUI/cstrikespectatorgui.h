@@ -86,6 +86,8 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+struct RocketHudRadar_t; // rocketui/rocketui.h
+
 #define DESIRED_RADAR_RESOLUTION 450 
 
 class CCSMapOverview : public CMapOverview
@@ -106,6 +108,10 @@ public:
 	virtual ~CCSMapOverview();
 
 	virtual bool ShouldDraw( void );
+#if defined( USE_CSSOROCKETUI )
+	// Same visibility rules as the vgui radar, for the RocketUI radar. Leaves out.show false when the radar must not be drawn.
+	void FillRocketRadar( RocketHudRadar_t &out );
+#endif
 	vgui::Panel *GetAsPanel(){ return this; }
 	virtual bool AllowConCommandsWhileAlive(){return false;}
 	virtual void ApplySchemeSettings( vgui::IScheme *scheme );

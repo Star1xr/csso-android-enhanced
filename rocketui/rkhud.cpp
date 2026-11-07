@@ -385,6 +385,73 @@ namespace
 		cache = rml;
 		e->SetInnerRML( rml );
 	}
+
+	// ---- radar ----
+	struct RadarDot_t
+	{
+		Rml::Element *el;
+		int type;     // -1: hidden
+		int x, y;
+		int zClass;   // 0 level, 1 above, 2 below
+	};
+	Rml::ElementDocument *s_pRadarDoc = NULL;
+	Rml::Element *s_radarRoot = NULL;
+	RadarDot_t s_radarDots[ROCKET_HUD_MAX_RADAR];
+	bool s_bRadarShown = false;
+
+	static ConVar rocket_hud_radar_range( "rocket_hud_radar_range", "2000", 0, "World units from the center to the edge of the radar" );
+
+	const char *RadarClass( int type )
+	{
+		switch ( type )
+		{
+		case ROCKET_RADAR_FRIEND:       return "dot friend";
+		case ROCKET_RADAR_FOE:          return "dot foe";
+		case ROCKET_RADAR_SPEC_T:       return "dot spec_t";
+		case ROCKET_RADAR_SPEC_CT:      return "dot spec_ct";
+		case ROCKET_RADAR_CARRIER:      return "dot carrier";
+		case ROCKET_RADAR_BOMB_PLANTED: return "dot bomb_planted";
+		case ROCKET_RADAR_BOMB_DROPPED: return "dot bomb_dropped";
+		case ROCKET_RADAR_HOSTAGE:      return "dot hostage";
+		}
+		return "dot off";
+	}
+
+	void UnloadRadar();
+	void LoadRadar()
+	{
+		if ( s_pRadarDoc )
+			return;
+		s_pRadarDoc = RocketUIImpl::m_Instance.LoadDocumentFile( ROCKET_CONTEXT_HUD, "hud_radar.rml", LoadRadar, UnloadRadar );
+		if ( !s_pRadarDoc )
+		{
+			Warning( "RocketUI: couldn't load hud_radar.rml\n" );
+			return;
+		}
+		s_radarRoot = s_pRadarDoc->GetElementById( "radar" );
+		memset( s_radarDots, 0, sizeof( s_radarDots ) );
+		for ( int i = 0; i < ROCKET_HUD_MAX_RADAR && s_radarRoot; i++ )
+		{
+			Rml::ElementPtr dot = s_pRadarDoc->CreateElement( "div" );
+			if ( !dot )
+				continue;
+			dot->SetClassNames( "dot off" );
+			s_radarDots[i].el = s_radarRoot->AppendChild( std::move( dot ) );
+			s_radarDots[i].type = -1;
+			s_radarDots[i].x = s_radarDots[i].y = -9999;
+		}
+		s_bRadarShown = false;
+		s_pRadarDoc->Hide();
+	}
+	void UnloadRadar()
+	{
+		if ( s_pRadarDoc )
+			s_pRadarDoc->Close();
+		s_pRadarDoc = NULL;
+		s_radarRoot = NULL;
+		memset( s_radarDots, 0, sizeof( s_radarDots ) );
+		s_bRadarShown = false;
+	}
 }
 
 bool RocketHud::Init( IVEngineClient *engine )
@@ -395,11 +462,16 @@ bool RocketHud::Init( IVEngineClient *engine )
 	LoadKillfeed();
 	LoadChat();
 	LoadScoreboard();
-	return s_d.info && s_d.timer && s_d.kill && s_pChatDoc && s_pSbDoc;
+	LoadRadar();
+	return s_d.info && s_d.timer && s_d.kill && s_pChatDoc && s_pSbDoc && s_pRadarDoc;
 }
 
 void RocketHud::Shutdown()
 {
+	s_pRadarDoc = NULL;
+	s_radarRoot = NULL;
+	memset( s_radarDots, 0, sizeof( s_radarDots ) );
+	s_bRadarShown = false;
 	s_pSbDoc = NULL;
 	s_sbCtScore = s_sbTScore = s_sbCtRows = s_sbTRows = s_sbSpec = NULL;
 	s_bSbShown = false;
@@ -626,6 +698,80 @@ CON_COMMAND( rocket_test_chat, "Add a fake chat line in RocketUI" )
 	RocketHud::ChatAdd( c );
 }
 
+void RocketHud::SetRadar( const RocketHudRadar_t &r )
+{
+	if ( !s_pRadarDoc || !s_radarRoot )
+		return;
+
+	ShowDoc( s_pRadarDoc, s_bRadarShown, r.show );
+	if ( !r.show )
+		return;
+
+	const float center = 130.0f;              // radar is 260 px wide
+	const float usable = 118.0f;              // dots stay inside the circle
+	const float range = MAX( 200.0f, rocket_hud_radar_range.GetFloat() );
+	const float scale = usable / range;
+	const float yaw = r.localYaw * ( 3.14159265f / 180.0f );
+	const float cy = cosf( yaw ), sy = sinf( yaw );
+
+	for ( int i = 0; i < ROCKET_HUD_MAX_RADAR; i++ )
+	{
+		RadarDot_t &d = s_radarDots[i];
+		if ( !d.el )
+			continue;
+
+		if ( i >= r.num )
+		{
+			if ( d.type != -1 )
+			{
+				d.type = -1;
+				d.el->SetClassNames( "dot off" );
+			}
+			continue;
+		}
+
+		const RocketHudRadarEntry_t &e = r.entries[i];
+		const float dx = e.x - r.localX, dy = e.y - r.localY;
+		float forward = dx * cy + dy * sy;
+		float right = dx * sy - dy * cy;
+		const float dist = sqrtf( forward * forward + right * right );
+		if ( dist > range )
+		{
+			forward *= range / dist;
+			right *= range / dist;
+		}
+
+		const int half = 6;
+		const int px = (int)( center + right * scale ) - half;
+		const int py = (int)( center - forward * scale ) - half;
+
+		const float dz = e.z - r.localZ;
+		const int zClass = dz > 128.0f ? 1 : ( dz < -128.0f ? 2 : 0 );
+
+		if ( d.type != e.type || d.zClass != zClass )
+		{
+			d.type = e.type;
+			d.zClass = zClass;
+			Rml::String cls = RadarClass( e.type );
+			if ( zClass == 1 )
+				cls += " up";
+			else if ( zClass == 2 )
+				cls += " down";
+			d.el->SetClassNames( cls );
+		}
+		if ( d.x != px )
+		{
+			d.x = px;
+			d.el->SetProperty( "left", Rml::ToString( px ) + "px" );
+		}
+		if ( d.y != py )
+		{
+			d.y = py;
+			d.el->SetProperty( "top", Rml::ToString( py ) + "px" );
+		}
+	}
+}
+
 void RocketHud::ScoreboardShow( bool show )
 {
 	ShowDoc( s_pSbDoc, s_bSbShown, show );
@@ -666,6 +812,7 @@ void RocketHud::ScoreboardSet( const RocketHudScoreboard_t &d )
 
 void RocketHud::Reset()
 {
+	ShowDoc( s_pRadarDoc, s_bRadarShown, false );
 	ShowDoc( s_pSbDoc, s_bSbShown, false );
 	ChatClose();
 	ClearChat();

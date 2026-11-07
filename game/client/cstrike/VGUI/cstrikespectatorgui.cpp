@@ -6,6 +6,10 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "../RocketUI/rkhud_bridge.h"
+#if defined( USE_CSSOROCKETUI )
+#include "rocketui/rocketui.h"
+#endif
 #include "cstrikespectatorgui.h"
 #include "hud.h"
 #include "cs_shareddefs.h"
@@ -1145,6 +1149,10 @@ void CCSMapOverview::UpdateBomb()
 
 bool CCSMapOverview::ShouldDraw( void )
 {
+	// RocketUI draws the radar; the other overview modes (spectator maps) stay vgui.
+	if ( GetMode() == MAP_MODE_RADAR )
+		ROCKET_HUD_HIDE_VGUI();
+
 	if ( cl_draw_only_deathnotices.GetBool() )
 		return false;
 
@@ -2671,3 +2679,94 @@ void CHudLocation::OnTick()
 	}
 	SetText( g_pVGuiLocalize->Find( pszLocation ) );
 }
+
+
+#if defined( USE_CSSOROCKETUI )
+void CCSMapOverview::FillRocketRadar( RocketHudRadar_t &out )
+{
+	memset( &out, 0, sizeof( out ) );
+
+	C_CSPlayer *pLocal = C_CSPlayer::GetLocalCSPlayer();
+	if ( !pLocal || !engine->IsInGame() || GetMode() != MAP_MODE_RADAR )
+		return;
+
+	// Same switches as CCSMapOverview::ShouldDraw
+	if ( IsInFreezeCam() || sv_disable_radar.GetInt() == 1 )
+		return;
+	if ( sv_disable_radar.GetInt() == 2 && CSGameRules() && CSGameRules()->IsWarmupPeriod() )
+		return;
+
+	// The vgui panel isn't ticked while it is hidden, so refresh its data (positions, spotted timers, bomb, hostages) here.
+	Update();
+
+	// Observing someone in first person / chase: center on that player.
+	C_CSPlayer *pView = pLocal;
+	if ( pLocal->IsObserver() && ( pLocal->GetObserverMode() == OBS_MODE_IN_EYE || pLocal->GetObserverMode() == OBS_MODE_CHASE ) )
+	{
+		C_CSPlayer *pTarget = ToCSPlayer( pLocal->GetObserverTarget() );
+		if ( pTarget )
+			pView = pTarget;
+	}
+
+	const Vector &viewOrigin = pView->GetAbsOrigin();
+	out.show = true;
+	out.localX = viewOrigin.x;
+	out.localY = viewOrigin.y;
+	out.localZ = viewOrigin.z;
+	out.localYaw = pView->EyeAngles().y;
+
+	const float now = gpGlobals->curtime;
+
+	for ( int i = 0; i < MAX_PLAYERS && out.num < ROCKET_HUD_MAX_RADAR; i++ )
+	{
+		MapPlayer_t *p = &m_Players[i];
+		if ( !CanPlayerBeSeen( p ) )
+			continue;
+		if ( p->userid == pView->GetUserID() )
+			continue; // the center marker is the viewed player
+
+		int type;
+		if ( pLocal->IsObserver() )
+			type = ( p->team == TEAM_CT ) ? ROCKET_RADAR_SPEC_CT : ROCKET_RADAR_SPEC_T;
+		else
+			type = IsOtherEnemy( pLocal->entindex(), p->index + 1 ) ? ROCKET_RADAR_FOE : ROCKET_RADAR_FRIEND;
+
+		if ( m_bomb.state == CSMapBomb_t::BOMB_CARRIED && m_bomb.carrierIndex == p->index )
+			type = ROCKET_RADAR_CARRIER;
+
+		RocketHudRadarEntry_t &e = out.entries[out.num++];
+		e.x = p->position.x;
+		e.y = p->position.y;
+		e.z = p->position.z;
+		e.type = type;
+	}
+
+	for ( int i = 0; i < MAX_HOSTAGES && out.num < ROCKET_HUD_MAX_RADAR; i++ )
+	{
+		if ( !CanHostageBeSeen( &m_Hostages[i] ) )
+			continue;
+		RocketHudRadarEntry_t &e = out.entries[out.num++];
+		e.x = m_Hostages[i].position.x;
+		e.y = m_Hostages[i].position.y;
+		e.z = m_Hostages[i].position.z;
+		e.type = ROCKET_RADAR_HOSTAGE;
+	}
+
+	// Planted / dropped bomb, same gating as DrawBomb(): a living CT only sees it while it was spotted recently.
+	if ( ( m_bomb.state == CSMapBomb_t::BOMB_PLANTED || m_bomb.state == CSMapBomb_t::BOMB_DROPPED ) && out.num < ROCKET_HUD_MAX_RADAR )
+	{
+		bool showBomb = true;
+		if ( pLocal->GetTeamNumber() == TEAM_CT && !pLocal->IsObserver() )
+			showBomb = ( m_bomb.timeLastSeen != -1 ) && ( now - m_bomb.timeLastSeen < TIME_SPOTS_STAY_SEEN );
+
+		if ( showBomb )
+		{
+			RocketHudRadarEntry_t &e = out.entries[out.num++];
+			e.x = m_bomb.position.x;
+			e.y = m_bomb.position.y;
+			e.z = m_bomb.position.z;
+			e.type = ( m_bomb.state == CSMapBomb_t::BOMB_PLANTED ) ? ROCKET_RADAR_BOMB_PLANTED : ROCKET_RADAR_BOMB_DROPPED;
+		}
+	}
+}
+#endif // USE_CSSOROCKETUI
