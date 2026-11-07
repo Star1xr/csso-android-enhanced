@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "../RocketUI/rkhud_bridge.h"
 #include "cstriketeammenu.h"
 #include "view_shared.h"
 #include "view.h"
@@ -429,6 +430,12 @@ void CCSTeamMenu::ShowPanel( bool bShow )
 	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
 	if ( !pPlayer )
 		return;
+
+#if defined( USE_CSSOROCKETUI )
+	// RocketUI draws the team menu; the vgui panel stays closed.
+	if ( RocketHud_OnTeamMenuShow( bShow ) )
+		return;
+#endif
 
 	if ( bShow )
 	{

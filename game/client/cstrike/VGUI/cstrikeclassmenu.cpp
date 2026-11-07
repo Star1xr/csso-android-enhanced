@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "../RocketUI/rkhud_bridge.h"
 #include "cstrikeclassmenu.h"
 #include "view_shared.h"
 #include "view.h"
@@ -44,6 +45,12 @@ void CCSClassMenu::Update()
 
 void CCSClassMenu::ShowPanel( bool bShow )
 {
+#if defined( USE_CSSOROCKETUI )
+	// RocketUI draws the class menu; the vgui panel stays closed.
+	if ( RocketHud_OnClassMenuShow( bShow ) )
+		return;
+#endif
+
 	if ( bShow )
 	{
 		// hide the system buttons

@@ -1,0 +1,37 @@
+<rml>
+	<head>
+		<title>hud_buymenu</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body { width: 100%; height: 100%; pointer-events: none; }
+			#dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #00000099; pointer-events: auto; }
+			#panel { position: absolute; left: 50%; top: 50%; width: 1000px; height: 640px; margin-left: -500px; margin-top: -320px; background-color: #14181cf5; pointer-events: auto; }
+			#head { position: absolute; left: 24px; top: 14px; right: 24px; height: 48px; line-height: 48px; font-size: 30px; color: #ffffff; }
+			#money { position: absolute; right: 0; top: 0; color: #8fd18f; }
+			#cats { position: absolute; left: 24px; top: 76px; width: 270px; }
+			#items { position: absolute; left: 314px; top: 76px; width: 670px; height: 470px; overflow-y: auto; }
+			#foot { position: absolute; left: 24px; right: 24px; bottom: 16px; height: 52px; }
+			.cat, .item, .act { display: block; box-sizing: border-box; height: 52px; line-height: 52px; margin-bottom: 8px; padding: 0 16px; background-color: #262c33; color: #ffffff; font-size: 22px; cursor: pointer; border-left-width: 4px; border-left-color: #262c33; }
+			.cat:hover, .item:hover, .act:hover { background-color: #34404c; }
+			.cat.sel { border-left-color: #d9a441; background-color: #34404c; }
+			.item { display: inline-block; width: 322px; margin-right: 8px; }
+			.item .price { float: right; color: #8fd18f; }
+			.item.off { color: #6b737b; cursor: default; }
+			.item.off .price { color: #ff5a4d; }
+			.act { display: inline-block; width: 190px; margin-right: 10px; margin-bottom: 0; text-align: center; border-left-width: 0; }
+			.act.close { float: right; margin-right: 0; background-color: #4a2220; }
+			.empty { color: #8b949e; padding: 14px 4px; }
+		</style>
+	</head>
+	<body>
+		<div id="dim"></div>
+		<div id="panel">
+			<div id="head">BUY<span id="money"></span></div>
+			<div id="cats"></div>
+			<div id="items"></div>
+			<div id="foot">
+				<span class="act" id="buy_rebuy">REBUY</span><span class="act" id="buy_auto">AUTOBUY</span><span class="act close" id="buy_close">CLOSE</span>
+			</div>
+		</div>
+	</body>
+</rml>

@@ -12,6 +12,10 @@
 #include "GameEventListener.h"
 #include "igamesystem.h"
 #include "hud_basechat.h"
+#include "KeyValues.h"
+#include "filesystem.h"
+#include "vgui/ILocalize.h"
+#include "cs_weapon_parse.h"
 #include "hudelement.h"
 #include "hud_macros.h"
 #include "../VGUI/cstrikespectatorgui.h"
@@ -210,6 +214,164 @@ static void FillScoreboard( RocketHudScoreboard_t &d )
 	d.scoreT = pT ? pT->Get_Score() : 0;
 }
 
+static KeyValues *s_pBuyConfig = NULL;
+static bool s_bBuyConfigTried = false;
+static float s_flNextBuy = 0.0f;
+
+// "#Token" -> localized UTF-8, anything else is copied.
+static void LocalizeText( const char *text, char *out, int outLen )
+{
+	out[0] = 0;
+	if ( !text )
+		return;
+	if ( text[0] == '#' && g_pVGuiLocalize )
+	{
+		const wchar_t *w = g_pVGuiLocalize->Find( text );
+		if ( w )
+		{
+			V_UnicodeToUTF8( w, out, outLen );
+			if ( out[0] )
+				return;
+		}
+	}
+	V_strncpy( out, text, outLen );
+}
+
+// Same list the vgui buy menu shows: scripts/buymenuconfig.txt, filtered for the player's team and map type.
+static void FillBuyMenu( RocketBuyMenu_t &m )
+{
+	memset( &m, 0, sizeof( m ) );
+	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
+	if ( !pPlayer )
+		return;
+	m.money = MAX( pPlayer->GetAccount(), 0 );
+
+	if ( !s_pBuyConfig && !s_bBuyConfigTried )
+	{
+		s_bBuyConfigTried = true;
+		s_pBuyConfig = new KeyValues( "BuyMenuConfig" );
+		if ( !s_pBuyConfig->LoadFromFile( g_pFullFileSystem, "scripts/buymenuconfig.txt", "GAME" ) )
+		{
+			Warning( "RocketUI: scripts/buymenuconfig.txt not found, buy menu will be empty\n" );
+			s_pBuyConfig->deleteThis();
+			s_pBuyConfig = NULL;
+		}
+	}
+	if ( !s_pBuyConfig )
+		return;
+
+	for ( KeyValues *kvCat = s_pBuyConfig->GetFirstTrueSubKey(); kvCat && m.numCategories < ROCKET_BUY_MAX_CATEGORIES; kvCat = kvCat->GetNextTrueSubKey() )
+	{
+		RocketBuyCategory_t &cat = m.categories[m.numCategories];
+		memset( &cat, 0, sizeof( cat ) );
+
+		for ( KeyValues *kvItem = kvCat->GetFirstTrueSubKey(); kvItem && cat.numItems < ROCKET_BUY_MAX_ITEMS; kvItem = kvItem->GetNextTrueSubKey() )
+		{
+			const int iTeam = kvItem->GetInt( "team" );
+			if ( iTeam != TEAM_UNASSIGNED && pPlayer->GetTeamNumber() != iTeam )
+				continue;
+			if ( AliasToWeaponID( kvItem->GetName() ) == WEAPON_NONE )
+				continue;
+
+			RocketBuyItem_t &it = cat.items[cat.numItems++];
+			V_strncpy( it.alias, kvItem->GetName(), sizeof( it.alias ) );
+			it.price = kvItem->GetInt( "price" );
+
+			const char *pszName = kvItem->GetString( "name", NULL );
+			if ( AliasToWeaponID( kvItem->GetName() ) == ITEM_DEFUSER && CSGameRules() && CSGameRules()->IsHostageRescueMap() )
+				pszName = "#CStrike_WPNHUD_Cutters";
+			LocalizeText( pszName, it.name, sizeof( it.name ) );
+
+			it.disabled = kvItem->GetBool( "de_cs_only" ) && CSGameRules() && !CSGameRules()->IsBombDefuseMap() && !CSGameRules()->IsHostageRescueMap();
+		}
+
+		if ( cat.numItems == 0 )
+			continue; // not for this team
+
+		V_strncpy( cat.name, kvCat->GetName(), sizeof( cat.name ) );
+		for ( char *c = cat.name; *c; c++ )
+		{
+			if ( *c == '_' )
+				*c = ' ';
+		}
+		if ( cat.name[0] >= 'a' && cat.name[0] <= 'z' )
+			cat.name[0] -= 'a' - 'A';
+		m.numCategories++;
+	}
+}
+
+bool RocketHud_OnBuyMenuShow( bool show )
+{
+	IRocketUI *pRocket = RocketUI_ClientGet();
+	if ( !show )
+	{
+		if ( pRocket )
+			pRocket->HudBuyMenuShow( false );
+		return false;
+	}
+
+	if ( !RocketHud_IsActive() )
+		return false;
+
+	static RocketBuyMenu_t menu; // ~11 KB, not for the stack
+	FillBuyMenu( menu );
+	pRocket->HudBuyMenuSet( menu );
+	pRocket->HudBuyMenuShow( true );
+	s_flNextBuy = gpGlobals->curtime + 0.25f;
+	return true;
+}
+
+bool RocketHud_OnTeamMenuShow( bool show )
+{
+	IRocketUI *pRocket = RocketUI_ClientGet();
+	RocketTeamMenu_t info;
+	memset( &info, 0, sizeof( info ) );
+
+	if ( !show )
+	{
+		if ( pRocket )
+			pRocket->HudTeamMenuShow( false, info );
+		return false;
+	}
+
+	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
+	if ( !RocketHud_IsActive() || !pPlayer )
+		return false;
+
+	C_Team *pT = GetGlobalTeam( TEAM_TERRORIST );
+	C_Team *pCT = GetGlobalTeam( TEAM_CT );
+	C_Team *pSpec = GetGlobalTeam( TEAM_SPECTATOR );
+	info.numT = pT ? pT->GetNumPlayers() : 0;
+	info.numCT = pCT ? pCT->GetNumPlayers() : 0;
+
+	const ConVar *allowSpectators = cvar->FindVar( "mp_allowspectators" );
+	info.allowSpectate = allowSpectators && allowSpectators->GetBool() && CSGameRules() &&
+		( ( pSpec ? pSpec->GetNumPlayers() : 0 ) < CSGameRules()->GetMaxSpectatorSlots() );
+	info.canCancel = pPlayer->GetTeamNumber() != TEAM_UNASSIGNED;
+	info.currentTeam = TeamToRocket( pPlayer->GetTeamNumber() );
+
+	pRocket->HudTeamMenuShow( true, info );
+	return true;
+}
+
+bool RocketHud_OnClassMenuShow( bool show )
+{
+	IRocketUI *pRocket = RocketUI_ClientGet();
+	if ( !show )
+	{
+		if ( pRocket )
+			pRocket->HudClassMenuShow( false, 0, false );
+		return false;
+	}
+
+	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
+	if ( !RocketHud_IsActive() || !pPlayer )
+		return false;
+
+	pRocket->HudClassMenuShow( true, TeamToRocket( pPlayer->GetTeamNumber() ), pPlayer->IsAlive() );
+	return true;
+}
+
 bool RocketHud_OnChatOpen( bool teamOnly )
 {
 	if ( !RocketHud_IsActive() )
@@ -259,6 +421,23 @@ public:
 					pOverview->FillRocketRadar( radar );
 			}
 			pRocket->HudSetRadar( radar );
+		}
+
+		// Buy menu: keep money / prices fresh, close it when the player leaves the buy zone or dies (the vgui one did the same in OnThink).
+		if ( pRocket->HudBuyMenuIsOpen() && gpGlobals->curtime >= s_flNextBuy )
+		{
+			s_flNextBuy = gpGlobals->curtime + 0.25f;
+			C_CSPlayer *pBuyer = C_CSPlayer::GetLocalCSPlayer();
+			if ( !pBuyer || !pBuyer->IsAlive() || !pBuyer->IsInBuyZone() )
+			{
+				pRocket->HudBuyMenuShow( false );
+			}
+			else
+			{
+				static RocketBuyMenu_t buyMenu;
+				FillBuyMenu( buyMenu );
+				pRocket->HudBuyMenuSet( buyMenu );
+			}
 		}
 
 		// The scoreboard only needs fresh data a few times per second.

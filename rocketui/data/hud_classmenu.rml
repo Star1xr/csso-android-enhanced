@@ -1,0 +1,21 @@
+<rml>
+	<head>
+		<title>hud_classmenu</title>
+		<link type="text/rcss" href="styles/csso.rcss"/>
+		<style>
+			body { width: 100%; height: 100%; pointer-events: none; }
+			#dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #000000aa; pointer-events: auto; }
+			#panel { position: absolute; left: 50%; top: 50%; width: 560px; margin-left: -280px; margin-top: -300px; padding: 24px 28px; background-color: #14181cf5; pointer-events: auto; }
+			.title { display: block; font-size: 34px; color: #ffffff; margin-bottom: 16px; }
+			.btn { height: 56px; line-height: 56px; font-size: 24px; margin-bottom: 10px; }
+			.btn.t { border-left-color: #e0a24a; }
+			.btn.ct { border-left-color: #6aa9ff; }
+			.btn.cancel { background-color: #4a2220; }
+			.cnt { float: right; color: #8b949e; font-size: 20px; }
+		</style>
+	</head>
+	<body>
+		<div id="dim"></div>
+		<div id="panel"><div id="content"></div></div>
+	</body>
+</rml>

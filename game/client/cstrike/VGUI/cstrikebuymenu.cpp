@@ -6,6 +6,7 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "../RocketUI/rkhud_bridge.h"
 #include "cstrikebuymenu.h"
 #include <vgui/ISurface.h>
 #include <vgui/ILocalize.h>
@@ -1036,6 +1037,12 @@ void CCSBuyMenu::ShowPanel( bool bShow )
 	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
 	if ( !pPlayer )
 		return;
+
+#if defined( USE_CSSOROCKETUI )
+	// RocketUI draws the buy menu; the vgui panel stays closed.
+	if ( RocketHud_OnBuyMenuShow( bShow ) )
+		return;
+#endif
 
 	bool bTouchEnable = (cvar->FindVar("touch_disable_on_buymenu")->GetInt() != 0);
 

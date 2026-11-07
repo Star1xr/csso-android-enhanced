@@ -146,6 +146,41 @@ struct RocketHudRadar_t
 	RocketHudRadarEntry_t entries[ROCKET_HUD_MAX_RADAR];
 };
 
+#define ROCKET_BUY_MAX_CATEGORIES 8
+#define ROCKET_BUY_MAX_ITEMS 16
+
+struct RocketBuyItem_t
+{
+	char alias[32];         // the argument of "buy <alias>"
+	char name[48];          // already localized
+	int price;
+	bool disabled;          // not usable on this map type
+};
+
+struct RocketBuyCategory_t
+{
+	char name[32];
+	int numItems;
+	RocketBuyItem_t items[ROCKET_BUY_MAX_ITEMS];
+};
+
+// Filtered for the local player's team by the client, straight from scripts/buymenuconfig.txt.
+struct RocketBuyMenu_t
+{
+	int money;
+	int numCategories;
+	RocketBuyCategory_t categories[ROCKET_BUY_MAX_CATEGORIES];
+};
+
+struct RocketTeamMenu_t
+{
+	int numT;
+	int numCT;
+	bool allowSpectate;
+	bool canCancel;
+	int currentTeam;        // RocketHudTeam_t
+};
+
 class IRocketUI : public IAppSystem
 {
 public:
@@ -189,6 +224,12 @@ public:
 	virtual void HudChatAdd( const RocketHudChat_t &line ) = 0;
 	virtual void HudSetRadar( const RocketHudRadar_t &radar ) = 0;
 	virtual void HudScoreboardShow( bool show ) = 0;
+	// Buy / team / class menus. The module sends buy, rebuy, autobuy, jointeam, spectate and joinclass itself.
+	virtual void HudBuyMenuShow( bool show ) = 0;
+	virtual bool HudBuyMenuIsOpen() = 0;
+	virtual void HudBuyMenuSet( const RocketBuyMenu_t &menu ) = 0;
+	virtual void HudTeamMenuShow( bool show, const RocketTeamMenu_t &info ) = 0;
+	virtual void HudClassMenuShow( bool show, int team, bool canCancel ) = 0;
 	// Only needed while the scoreboard is shown; the client sends it a few times per second.
 	virtual void HudScoreboardSet( const RocketHudScoreboard_t &data ) = 0;
 	// Opens the typing line (messagemode / messagemode2). The module sends say / say_team itself.

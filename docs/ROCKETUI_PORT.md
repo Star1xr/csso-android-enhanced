@@ -53,7 +53,7 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
     - [x] B: chat (module `hud_chat.rml`, `ChatPrintf` + `StartMessageMode` hooks, typed characters `IE_FirstVguiEvent+3` now reach `HandleTextInput`; console `rocket_test_chat`; Actions OK, not tried on a device)
     - [x] C: scoreboard (module `hud_scoreboard.rml`, `CCSClientScoreBoardDialog::ShowPanel` hook, data sent 4x/s while shown; no per-half scores / loss bonus yet; Actions OK, not tried on a device)
     - [x] D: radar (module `hud_radar.rml`; data from `CCSMapOverview::FillRocketRadar` = same visibility rules as the vgui radar, 20 Hz; dots only, no map image because overview textures are VTF and the module renderer reads TGA; location text + dropped-bomb ring not ported; Actions OK, not tried on a device)
-    - [ ] E: buy menu + team menu
+    - [~] E: buy menu + team menu + class menu (module `rkgamemenus.cpp`, `hud_buymenu/teammenu/classmenu.rml`; client hooks in the three `ShowPanel`s; buy list comes from `scripts/buymenuconfig.txt` filtered for team/map by the client; module sends `buy`/`rebuy`/`autobuy`/`jointeam`/`spectate`/`joinclass`; no weapon icons / descriptions, category titles are the config key names; waiting for Actions)
     - [ ] F: loading screen + pause menu (ESC; engine `ActivateGameUI` must not show the vgui menu in game)
 
 - [ ] 1.5 Console + net_graph: port the CS:GO look from Kisak-Strike to CS:SO (restyle the vgui console, CS:GO style `net_graph`); needs a look at Kisak's console/netgraph sources first

@@ -7,6 +7,7 @@
 #include "customelements.h"
 #include "rkmenu.h"
 #include "rkhud.h"
+#include "rkgamemenus.h"
 
 #include <RmlUi/Core.h>
 
@@ -145,6 +146,7 @@ InitReturnVal_t RocketUIImpl::Init( void )
 	if ( !RocketMenu::Init( m_pEngine ) )
 		Warning( "RocketUI: main menu document missing, menu will be empty\n" );
 
+	RocketGameMenus::Init( m_pEngine );
 	if ( !RocketHud::Init( m_pEngine ) )
 		Warning( "RocketUI: some HUD documents are missing (is csso/rocketui/ up to date?)\n" );
 
@@ -154,6 +156,7 @@ InitReturnVal_t RocketUIImpl::Init( void )
 void RocketUIImpl::Shutdown()
 {
 	RocketMenu::Shutdown();
+	RocketGameMenus::Shutdown();
 	RocketHud::Shutdown();
 	if ( m_bRmlInitialised )
 	{
@@ -235,6 +238,7 @@ void RocketUIImpl::RunFrame( float time )
 
 	RocketMenu::Frame( m_pEngine && m_pEngine->IsInGame(), time );
 	RocketHud::Frame( time );
+	RocketGameMenus::Frame();
 }
 
 void RocketUIImpl::ShowOptionsPanel( bool show )
@@ -271,6 +275,35 @@ void RocketUIImpl::HudSetRadar( const RocketHudRadar_t &radar )
 		RocketHud::SetRadar( radar );
 }
 
+void RocketUIImpl::HudBuyMenuShow( bool show )
+{
+	if ( rocket_enable.GetBool() || !show )
+		RocketGameMenus::BuyShow( show );
+}
+
+bool RocketUIImpl::HudBuyMenuIsOpen()
+{
+	return RocketGameMenus::BuyIsOpen();
+}
+
+void RocketUIImpl::HudBuyMenuSet( const RocketBuyMenu_t &menu )
+{
+	if ( rocket_enable.GetBool() )
+		RocketGameMenus::BuySet( menu );
+}
+
+void RocketUIImpl::HudTeamMenuShow( bool show, const RocketTeamMenu_t &info )
+{
+	if ( rocket_enable.GetBool() || !show )
+		RocketGameMenus::TeamShow( show, info );
+}
+
+void RocketUIImpl::HudClassMenuShow( bool show, int team, bool canCancel )
+{
+	if ( rocket_enable.GetBool() || !show )
+		RocketGameMenus::ClassShow( show, team, canCancel );
+}
+
 void RocketUIImpl::HudScoreboardShow( bool show )
 {
 	if ( rocket_enable.GetBool() )
@@ -291,6 +324,7 @@ void RocketUIImpl::HudChatOpen( bool teamOnly )
 
 void RocketUIImpl::HudReset()
 {
+	RocketGameMenus::Reset();
 	RocketHud::Reset();
 }
 

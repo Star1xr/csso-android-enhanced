@@ -21,6 +21,12 @@ bool RocketHud_OnChatOpen( bool teamOnly );
 // must then stay closed. show=false always hides the RocketUI one and returns false so vgui can close itself too.
 bool RocketHud_OnScoreboardShow( bool show );
 
+// Buy / team / class menus (CCSBuyMenu / CCSTeamMenu / CCSClassMenu ::ShowPanel hooks). Same contract as the scoreboard:
+// show=true returns true when RocketUI shows it (vgui panel must stay closed), show=false hides the RocketUI one and returns false.
+bool RocketHud_OnBuyMenuShow( bool show );
+bool RocketHud_OnTeamMenuShow( bool show );
+bool RocketHud_OnClassMenuShow( bool show );
+
 // First line of a vgui HUD panel's ShouldDraw(): hides the old panel while RocketUI draws the same thing.
 #define ROCKET_HUD_HIDE_VGUI() do { if ( RocketHud_IsActive() ) return false; } while ( 0 )
 
