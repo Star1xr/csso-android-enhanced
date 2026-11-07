@@ -15,7 +15,8 @@ jobs:
       run: |
         git clone https://github.com/DMK95/Srceng-mod-launcher/ -b csso
         sudo apt-get update
-        sudo apt-get install -f -y openjdk-8-jre zip apksigner
+        # build-tools 21.0.0 (aapt, zipalign) are 32-bit binaries: "libz.so.1: cannot open shared object file" without these
+        sudo apt-get install -f -y openjdk-8-jre zip apksigner lib32z1 lib32stdc++6
     - name: Build Android (32 bit)
       run: |
         scripts/build-android-armv7a.sh
