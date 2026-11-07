@@ -1,5 +1,7 @@
 #include "rkgamemenus.h"
 #include "rocketuiimpl.h" // first: pulls in RmlUi before tier0/dbg.h defines Assert
+#include "rkhud.h"
+#include "rkmenu.h"
 
 #include <RmlUi/Core.h>
 
@@ -20,7 +22,11 @@ namespace
 		bool grab;
 		bool canCancel;
 	};
-	Menu_t s_buy, s_team, s_class;
+	Menu_t s_buy, s_team, s_class, s_pause;
+	Rml::ElementDocument *s_pLoadDoc = NULL;
+	Rml::Element *s_loadMap = NULL, *s_loadFill = NULL, *s_loadStatus = NULL;
+	bool s_bLoading = false;
+	int s_loadPercent = -1;
 
 	// Buy menu state
 	RocketBuyMenu_t s_buyData;
@@ -277,6 +283,43 @@ namespace
 	};
 	ClassListener s_classListener;
 
+	// ---- pause menu ----
+	class PauseListener : public Rml::EventListener
+	{
+	public:
+		void ProcessEvent( Rml::Event &event ) override
+		{
+			if ( event.GetId() == Rml::EventId::Keydown )
+			{
+				if ( event.GetParameter<int>( "key_identifier", 0 ) == Rml::Input::KI_ESCAPE )
+					SetOpen( s_pause, "PauseMenu", false );
+				return;
+			}
+
+			const Rml::String id = ClickedId( event );
+			if ( id == "pm_resume" )
+			{
+				SetOpen( s_pause, "PauseMenu", false );
+			}
+			else if ( id == "pm_team" )
+			{
+				SetOpen( s_pause, "PauseMenu", false );
+				Command( "chooseteam" );
+			}
+			else if ( id == "pm_options" )
+			{
+				SetOpen( s_pause, "PauseMenu", false );
+				RocketMenu::ShowOptions( true );
+			}
+			else if ( id == "pm_disconnect" )
+			{
+				SetOpen( s_pause, "PauseMenu", false );
+				Command( "disconnect" );
+			}
+		}
+	};
+	PauseListener s_pauseListener;
+
 	void LoadMenu( Menu_t &m, const char *file, Rml::EventListener *listener )
 	{
 		m.doc = RocketUIImpl::m_Instance.LoadDocumentFile( ROCKET_CONTEXT_HUD, file );
@@ -299,6 +342,7 @@ void RocketGameMenus::Init( IVEngineClient *engine )
 	memset( &s_buy, 0, sizeof( s_buy ) );
 	memset( &s_team, 0, sizeof( s_team ) );
 	memset( &s_class, 0, sizeof( s_class ) );
+	memset( &s_pause, 0, sizeof( s_pause ) );
 
 	LoadMenu( s_buy, "hud_buymenu.rml", &s_buyListener );
 	if ( s_buy.doc )
@@ -309,6 +353,19 @@ void RocketGameMenus::Init( IVEngineClient *engine )
 	}
 	LoadMenu( s_team, "hud_teammenu.rml", &s_teamListener );
 	LoadMenu( s_class, "hud_classmenu.rml", &s_classListener );
+	LoadMenu( s_pause, "hud_pausemenu.rml", &s_pauseListener );
+
+	// The loading screen lives in the menu context: the engine renders it while the game UI is active (which it is during loading).
+	s_pLoadDoc = RocketUIImpl::m_Instance.LoadDocumentFile( ROCKET_CONTEXT_MENU, "menu_loading.rml" );
+	if ( s_pLoadDoc )
+	{
+		s_loadMap = s_pLoadDoc->GetElementById( "map" );
+		s_loadFill = s_pLoadDoc->GetElementById( "fill" );
+		s_loadStatus = s_pLoadDoc->GetElementById( "status" );
+		s_pLoadDoc->Hide();
+	}
+	else
+		Warning( "RocketUI: couldn't load menu_loading.rml\n" );
 }
 
 void RocketGameMenus::Shutdown()
@@ -317,6 +374,10 @@ void RocketGameMenus::Shutdown()
 	memset( &s_buy, 0, sizeof( s_buy ) );
 	memset( &s_team, 0, sizeof( s_team ) );
 	memset( &s_class, 0, sizeof( s_class ) );
+	memset( &s_pause, 0, sizeof( s_pause ) );
+	s_pLoadDoc = NULL;
+	s_loadMap = s_loadFill = s_loadStatus = NULL;
+	s_bLoading = false;
 	s_buyCats = s_buyItems = s_buyMoney = NULL;
 	s_bHaveBuyData = s_bBuyDirty = false;
 	s_catsCache = s_itemsCache = s_moneyCache = "";
@@ -326,6 +387,10 @@ void RocketGameMenus::Frame()
 {
 	if ( s_bBuyDirty && s_buy.open && s_bHaveBuyData )
 		RebuildBuy();
+
+	// The pause menu only exists while a game is running.
+	if ( s_pause.open && s_pEngine && !s_pEngine->IsInGame() )
+		SetOpen( s_pause, "PauseMenu", false );
 }
 
 void RocketGameMenus::Reset()
@@ -333,6 +398,7 @@ void RocketGameMenus::Reset()
 	CloseBuy();
 	SetOpen( s_team, "TeamMenu", false );
 	SetOpen( s_class, "ClassMenu", false );
+	SetOpen( s_pause, "PauseMenu", false );
 	s_bHaveBuyData = false;
 }
 
@@ -426,4 +492,82 @@ void RocketGameMenus::ClassShow( bool show, int team, bool canCancel )
 		rml += "<div class=\"btn cancel\" id=\"class_cancel\">Cancel</div>";
 	SetContent( s_class, rml );
 	SetOpen( s_class, "ClassMenu", true );
+}
+
+bool RocketGameMenus::HandleEscape()
+{
+	if ( !s_pause.doc )
+		return false;
+
+	if ( s_pause.open )
+	{
+		SetOpen( s_pause, "PauseMenu", false );
+		return true;
+	}
+
+	// These handle ESC themselves (their documents have focus).
+	if ( AnyOpen() || RocketHud::ChatIsOpen() || RocketMenu::OptionsIsOpen() || s_bLoading )
+		return false;
+
+	SetOpen( s_pause, "PauseMenu", true );
+	return true;
+}
+
+// ---- loading screen ----
+static void RefreshLoading()
+{
+	// The engine doesn't run frames while loading, so update the menu context by hand.
+	if ( Rml::Context *ctx = RocketUIImpl::m_Instance.AccessMenuContext() )
+		ctx->Update();
+}
+
+void RocketGameMenus::LoadingStart( const char *levelName, bool localServer )
+{
+	if ( !s_pLoadDoc )
+		return;
+
+	SetOpen( s_pause, "PauseMenu", false );
+	s_bLoading = true;
+	s_loadPercent = -1;
+
+	char base[64] = "";
+	if ( levelName && levelName[0] )
+		Q_FileBase( levelName, base, sizeof( base ) );
+	if ( s_loadMap )
+		s_loadMap->SetInnerRML( base[0] ? Rml::StringUtilities::EncodeRml( base ) : Rml::String( localServer ? "Loading" : "Connecting" ) );
+	if ( s_loadStatus )
+		s_loadStatus->SetInnerRML( localServer ? "Loading" : "Connecting" );
+	if ( s_loadFill )
+		s_loadFill->SetProperty( "width", "0%" );
+
+	s_pLoadDoc->Show( Rml::ModalFlag::None, Rml::FocusFlag::None );
+	s_pLoadDoc->PullToFront();
+	RefreshLoading();
+}
+
+bool RocketGameMenus::LoadingProgress( float progress, const char *desc )
+{
+	if ( !s_bLoading || !s_pLoadDoc )
+		return false;
+
+	const int percent = (int)( clamp( progress, 0.0f, 1.0f ) * 100.0f );
+	if ( percent != s_loadPercent && s_loadFill )
+	{
+		s_loadPercent = percent;
+		char buf[16];
+		Q_snprintf( buf, sizeof( buf ), "%d%%", percent );
+		s_loadFill->SetProperty( "width", buf );
+	}
+	if ( s_loadStatus && desc && desc[0] )
+		s_loadStatus->SetInnerRML( Rml::StringUtilities::EncodeRml( desc ) );
+
+	RefreshLoading();
+	return true;
+}
+
+void RocketGameMenus::LoadingFinish()
+{
+	if ( s_pLoadDoc && s_bLoading )
+		s_pLoadDoc->Hide();
+	s_bLoading = false;
 }

@@ -275,6 +275,22 @@ void RocketUIImpl::HudSetRadar( const RocketHudRadar_t &radar )
 		RocketHud::SetRadar( radar );
 }
 
+void RocketUIImpl::OnLevelLoadingStarted( const char *levelName, bool localServer )
+{
+	if ( rocket_enable.GetBool() )
+		RocketGameMenus::LoadingStart( levelName, localServer );
+}
+
+bool RocketUIImpl::OnLoadingProgress( float progress, const char *desc )
+{
+	return rocket_enable.GetBool() && RocketGameMenus::LoadingProgress( progress, desc );
+}
+
+void RocketUIImpl::OnLevelLoadingFinished()
+{
+	RocketGameMenus::LoadingFinish();
+}
+
 void RocketUIImpl::HudBuyMenuShow( bool show )
 {
 	if ( rocket_enable.GetBool() || !show )
@@ -395,11 +411,11 @@ bool RocketUIImpl::HandleInputEvent( const InputEvent_t &event )
 	if ( !m_ctxCurrent || !rocket_enable.GetBool() )
 		return false;
 
-	// The pause menu is opened with ESC through the registered callback.
+	// ESC in a running game opens / closes the pause menu. Menus that handle ESC themselves (chat, buy, team, options) are left alone.
 	if ( event.m_nType == IE_ButtonPressed && event.m_nData == KEY_ESCAPE )
 	{
-		if ( m_togglePauseMenuFunc && m_pEngine && m_pEngine->IsInGame() )
-			m_togglePauseMenuFunc();
+		if ( m_pEngine && m_pEngine->IsInGame() && !m_pEngine->Con_IsVisible() && RocketGameMenus::HandleEscape() )
+			return true; // consumed: the engine must not open the vgui game menu
 	}
 
 	if ( !IsConsumingInput() )

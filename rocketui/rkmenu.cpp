@@ -205,6 +205,11 @@ void RocketMenu::Frame( bool inGame, float time )
 	}
 }
 
+bool RocketMenu::OptionsIsOpen()
+{
+	return s_bOptionsGrab;
+}
+
 void RocketMenu::ShowOptions( bool show )
 {
 	if ( show )

@@ -49,6 +49,9 @@ public:
 	void HudChatAdd( const RocketHudChat_t &line ) override;
 	void HudSetRadar( const RocketHudRadar_t &radar ) override;
 	void HudScoreboardShow( bool show ) override;
+	void OnLevelLoadingStarted( const char *levelName, bool localServer ) override;
+	bool OnLoadingProgress( float progress, const char *desc ) override;
+	void OnLevelLoadingFinished() override;
 	void HudBuyMenuShow( bool show ) override;
 	bool HudBuyMenuIsOpen() override;
 	void HudBuyMenuSet( const RocketBuyMenu_t &menu ) override;

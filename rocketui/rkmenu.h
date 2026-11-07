@@ -15,6 +15,7 @@ namespace RocketMenu
 	void Frame( bool inGame, float time );
 
 	void ShowOptions( bool show );
+	bool OptionsIsOpen();
 	void ShowPopup( const char *text, float timeout );
 }
 

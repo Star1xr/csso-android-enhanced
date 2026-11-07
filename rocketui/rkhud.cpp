@@ -669,6 +669,11 @@ void RocketHud::ChatAdd( const RocketHudChat_t &c )
 	}
 }
 
+bool RocketHud::ChatIsOpen()
+{
+	return s_bChatOpen;
+}
+
 void RocketHud::ChatOpen( bool teamOnly )
 {
 	if ( !s_pChatDoc || s_bChatOpen )

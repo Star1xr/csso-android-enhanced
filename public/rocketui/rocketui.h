@@ -225,6 +225,10 @@ public:
 	virtual void HudSetRadar( const RocketHudRadar_t &radar ) = 0;
 	virtual void HudScoreboardShow( bool show ) = 0;
 	// Buy / team / class menus. The module sends buy, rebuy, autobuy, jointeam, spectate and joinclass itself.
+	// Loading screen. The engine calls these from CEngineVGui; OnLoadingProgress returns true when the screen must be redrawn.
+	virtual void OnLevelLoadingStarted( const char *levelName, bool localServer ) = 0;
+	virtual bool OnLoadingProgress( float progress, const char *desc ) = 0;
+	virtual void OnLevelLoadingFinished() = 0;
 	virtual void HudBuyMenuShow( bool show ) = 0;
 	virtual bool HudBuyMenuIsOpen() = 0;
 	virtual void HudBuyMenuSet( const RocketBuyMenu_t &menu ) = 0;

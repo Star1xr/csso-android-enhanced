@@ -24,8 +24,16 @@ namespace RocketGameMenus
 	void TeamShow( bool show, const RocketTeamMenu_t &info );
 	void ClassShow( bool show, int team, bool canCancel );
 
-	// True while any of the three is open (the pause menu must stay closed then).
+	// True while buy / team / class is open.
 	bool AnyOpen();
+
+	// ESC pressed in a running game. Opens or closes the pause menu; returns true when the key was used (consume it).
+	bool HandleEscape();
+
+	// Loading screen (engine callbacks, menu context).
+	void LoadingStart( const char *levelName, bool localServer );
+	bool LoadingProgress( float progress, const char *desc ); // true: redraw needed
+	void LoadingFinish();
 }
 
 #endif

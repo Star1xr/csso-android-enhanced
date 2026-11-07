@@ -1330,6 +1330,10 @@ void CEngineVGui::OnLevelLoadingStarted(char const *levelName, bool bLocalServer
 
 	// we've starting loading a level/connecting to a server
 	staticGameUIFuncs->OnLevelLoadingStarted( levelName, bLocalServer );
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		g_pRocketUI->OnLevelLoadingStarted( levelName, bLocalServer );
+#endif
 
 	// reset progress bar timers
 	m_flLoadingStartTime = Plat_FloatTime();
@@ -1360,6 +1364,10 @@ void CEngineVGui::OnLevelLoadingFinished()
 	if (!staticGameUIFuncs)
 		return;
 
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		g_pRocketUI->OnLevelLoadingFinished();
+#endif
 	staticGameUIFuncs->OnLevelLoadingFinished( gfExtendedError, gszDisconnectReason, gszExtendedDisconnectReason );
 	m_eLastProgressPoint = PROGRESS_NONE;
 
@@ -1438,6 +1446,10 @@ void CEngineVGui::ShowErrorMessage()
 	if (!staticGameUIFuncs || !gfExtendedError)
 		return;
 
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		g_pRocketUI->OnLevelLoadingFinished();
+#endif
 	staticGameUIFuncs->OnLevelLoadingFinished( gfExtendedError, gszDisconnectReason, gszExtendedDisconnectReason );
 	m_eLastProgressPoint = PROGRESS_NONE;
 
@@ -1506,7 +1518,12 @@ void CEngineVGui::UpdateProgressBar(LevelLoadingProgress_e progress)
 	// isolated from the normal progress descriptions
 	flPerc = flPerc * ( 1.0f - m_ProgressBias ) + m_ProgressBias;
 
-	if ( staticGameUIFuncs->UpdateProgressBar( flPerc, desc.pszDesc ) )
+	bool bRocketRedraw = false;
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		bRocketRedraw = g_pRocketUI->OnLoadingProgress( flPerc, desc.pszDesc );
+#endif
+	if ( staticGameUIFuncs->UpdateProgressBar( flPerc, desc.pszDesc ) || bRocketRedraw )
 	{
 		// re-render vgui on screen
 		extern void V_RenderVGuiOnly();
@@ -1527,7 +1544,12 @@ void CEngineVGui::UpdateCustomProgressBar( float progress, const wchar_t *desc )
 	char ansi[1024];
 	g_pVGuiLocalize->ConvertUnicodeToANSI( desc, ansi, sizeof( ansi ) );
 
-	if ( staticGameUIFuncs->UpdateProgressBar( progress, ansi ) )
+	bool bRocketRedraw = false;
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		bRocketRedraw = g_pRocketUI->OnLoadingProgress( progress, ansi );
+#endif
+	if ( staticGameUIFuncs->UpdateProgressBar( progress, ansi ) || bRocketRedraw )
 	{
 		// re-render vgui on screen
 		extern void V_RenderVGuiOnly();
@@ -1542,6 +1564,10 @@ void CEngineVGui::StartCustomProgress()
 
 	// we've starting loading a level/connecting to a server
 	staticGameUIFuncs->OnLevelLoadingStarted( NULL, true );
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		g_pRocketUI->OnLevelLoadingStarted( NULL, true );
+#endif
 	m_bSaveProgress = staticGameUIFuncs->SetShowProgressText( true );
 }
 
@@ -1551,6 +1577,10 @@ void CEngineVGui::FinishCustomProgress()
 		return;
 
 	staticGameUIFuncs->SetShowProgressText( m_bSaveProgress );
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		g_pRocketUI->OnLevelLoadingFinished();
+#endif
 	staticGameUIFuncs->OnLevelLoadingFinished( false, "", "" );
 }
 
@@ -1564,7 +1594,12 @@ void CEngineVGui::UpdateProgressBar( float progress )
 	if ( !staticGameUIFuncs )
 		return;
 
-	if ( staticGameUIFuncs->UpdateProgressBar( progress, "" ) )
+	bool bRocketRedraw = false;
+#ifdef USE_CSSOROCKETUI
+	if ( g_pRocketUI )
+		bRocketRedraw = g_pRocketUI->OnLoadingProgress( progress, "" );
+#endif
+	if ( staticGameUIFuncs->UpdateProgressBar( progress, "" ) || bRocketRedraw )
 	{
 		// re-render vgui on screen
 		extern void V_RenderVGuiOnly();
