@@ -49,9 +49,12 @@ Kisak's own `INCLUDE_ROCKETUI` is replaced by `USE_CSSOROCKETUI` while porting.
     - `IRocketUI::ShowOptionsPanel` / `ShowPopup` so the client pause menu can open them; console: `rocket_options`, `rocket_test_popup`
     - Open: text fields (`HandleTextInput` still not fed), touch scrolling in the options panel, real-device look of select/slider styling
   - [~] 1.4b HUD. RmlUi headers cannot be included in the client DLL (NDK r10e / gnustl 4.9 has no C++14 library: `std::make_unique`, `std::exchange`, `underlying_type_t`; the first 1.4b try failed exactly on this). So the split is: documents + RmlUi code in the module (`rocketui/rkhud.cpp`, `rocketui/data/hud_*.rml`), the client only reads CS:SO data and passes plain structs (`RocketHud*_t` in `public/rocketui/rocketui.h`) through `IRocketUI::Hud*` (`game/client/cstrike/RocketUI/rkhud_bridge.cpp`). Old vgui panels hide themselves with `ROCKET_HUD_HIDE_VGUI()` while RocketUI is active.
-    - [~] A: infobar (hp/armor/ammo/money), round timer + team scores (also replaces CHudTeamCounter), killfeed (waiting for Actions). Console: `rocket_test_kill`
-    - [~] B: chat (module `hud_chat.rml`, `ChatPrintf` + `StartMessageMode` hooks, typed characters `IE_FirstVguiEvent+3` now reach `HandleTextInput`; console `rocket_test_chat`; waiting for Actions)
-    - [~] C: scoreboard (module `hud_scoreboard.rml`, `CCSClientScoreBoardDialog::ShowPanel` hook, data sent 4x/s while shown; no per-half scores / loss bonus yet; waiting for Actions)  - [ ] D: radar  - [ ] E: buy menu + team menu  - [ ] F: loading screen + pause menu (ESC; engine `ActivateGameUI` must not show the vgui menu in game)
+    - [x] A: infobar (hp/armor/ammo/money), round timer + team scores (also replaces CHudTeamCounter), killfeed (Actions OK, not tried on a device). Console: `rocket_test_kill`
+    - [x] B: chat (module `hud_chat.rml`, `ChatPrintf` + `StartMessageMode` hooks, typed characters `IE_FirstVguiEvent+3` now reach `HandleTextInput`; console `rocket_test_chat`; Actions OK, not tried on a device)
+    - [x] C: scoreboard (module `hud_scoreboard.rml`, `CCSClientScoreBoardDialog::ShowPanel` hook, data sent 4x/s while shown; no per-half scores / loss bonus yet; Actions OK, not tried on a device)
+    - [x] D: radar (module `hud_radar.rml`; data from `CCSMapOverview::FillRocketRadar` = same visibility rules as the vgui radar, 20 Hz; dots only, no map image because overview textures are VTF and the module renderer reads TGA; location text + dropped-bomb ring not ported; Actions OK, not tried on a device)
+    - [ ] E: buy menu + team menu
+    - [ ] F: loading screen + pause menu (ESC; engine `ActivateGameUI` must not show the vgui menu in game)
 
 - [ ] 1.5 Console + net_graph: port the CS:GO look from Kisak-Strike to CS:SO (restyle the vgui console, CS:GO style `net_graph`); needs a look at Kisak's console/netgraph sources first
 
