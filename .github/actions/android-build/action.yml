@@ -59,5 +59,6 @@ runs:
       uses: actions/upload-artifact@v7
       with:
         name: csso-libs-${{ inputs.abi }}
-        path: output
+        # only this ABI, otherwise the 64 bit run packs the 32 bit output too
+        path: output/${{ inputs.abi }}
         if-no-files-found: error

@@ -35,9 +35,16 @@ jobs:
     - name: Put the libs into the launcher
       run: |
         for abi in armeabi-v7a arm64-v8a; do
-          mkdir -p launcher-app/app/src/main/jniLibs/$abi
-          # the launcher ships its own libSDL2.so; engine libs are added next to it
-          find output/$abi -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} launcher-app/app/src/main/jniLibs/$abi/ \;
+          dest="launcher-app/app/src/main/jniLibs/$abi"
+          mkdir -p "$dest"
+          # waf installs into output/<abi>/lib/<abi>/; grab every .so below output/<abi>
+          # (the launcher ships its own libSDL2.so, so skip that one to keep its copy)
+          find "output/$abi" -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
+          echo "--- $abi jniLibs ---"
+          ls -1 "$dest"
+          copied=$(find "output/$abi" -name '*.so' ! -name 'libSDL2.so' | wc -l)
+          echo "$abi: $copied libs copied from output/$abi"
+          [ "$copied" -ge 9 ] || { echo "::error::no engine libs found for $abi"; exit 1; }
         done
 
     - name: Pack extras_dir.vpk
@@ -59,6 +66,22 @@ jobs:
       run: |
         chmod +x gradlew
         ./gradlew --no-daemon assembleRelease
+
+    - name: Verify APK contains both ABIs and every lib
+      run: |
+        APK=$(ls launcher-app/app/build/outputs/apk/release/*.apk | head -1)
+        unzip -Z1 "$APK" | grep '^lib/'
+        for abi in armeabi-v7a arm64-v8a; do
+          n=0
+          for f in launcher-app/app/src/main/jniLibs/$abi/*.so; do
+            name=$(basename "$f")
+            unzip -Z1 "$APK" | grep -qx "lib/$abi/$name" || {
+              echo "::error::$APK is missing lib/$abi/$name"; exit 1;
+            }
+            n=$((n+1))
+          done
+          echo "$abi: $n libs present in APK"
+        done
 
     - name: Sign APK
       run: |
