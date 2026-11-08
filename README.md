@@ -5,6 +5,10 @@ Mod author: PimonFeeD
 Source engine port author: nillerusr
 1.2 Updates: PowerSiderS
 
+on this shitty fork
+
+[-] dxvk native (https://github.com/Star1xr/dxvk-native-android)
+[×] useless full ci build
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
