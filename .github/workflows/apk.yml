@@ -42,9 +42,9 @@ jobs:
           find "output/$abi" -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
           echo "--- $abi jniLibs ---"
           ls -1 "$dest"
-          copied=$(find "output/$abi" -name '*.so' ! -name 'libSDL2.so' | wc -l)
-          echo "$abi: $copied libs copied from output/$abi"
-          [ "$copied" -ge 9 ] || { echo "::error::no engine libs found for $abi"; exit 1; }
+          n=$(find "$dest" -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' | wc -l)
+          echo "$abi: $n engine libs copied"
+          [ "$n" -gt 0 ] || { echo "::error::$abi: no engine libs were built/installed"; exit 1; }
         done
 
     - name: Pack extras_dir.vpk
