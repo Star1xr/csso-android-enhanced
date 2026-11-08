@@ -13,14 +13,19 @@ case "$ABI" in
 	armeabi-v7a)
 		CPU=arm
 		ARCH=arm
-		TRIPLE=armv7a-linux-androideabi21
-		CPUFLAGS="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp"
+		# keep in sync with scripts/waifulib/xcompile.py (armeabi-v7a-hard)
+		TRIPLE=arm-linux-androideabi21
+		GCC_TOOLCHAIN=arm-linux-androideabi-4.9
+		CPUFLAGS="-march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard"
+		EXTRALIBS="-lm_hard"
 		;;
 	arm64-v8a)
 		CPU=aarch64
 		ARCH=aarch64
 		TRIPLE=aarch64-linux-android21
-		CPUFLAGS="-march=armv8-a"
+		GCC_TOOLCHAIN=aarch64-linux-android-4.9
+		CPUFLAGS=""
+		EXTRALIBS=""
 		;;
 	*)
 		echo "usage: $0 armeabi-v7a|arm64-v8a" >&2
@@ -49,8 +54,12 @@ fi
 NDK=$PWD/android-ndk-r10e
 LLVM=$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04
 SYSROOT=$NDK/platforms/android-21/arch-$CPU
+GCC=$NDK/toolchains/$GCC_TOOLCHAIN/prebuilt/linux-x86_64
 SRC=ffmpeg-6.1
 OUT=$PWD/ffmpeg-out-$CPU
+
+CFLAGS="--target=$TRIPLE --sysroot=$SYSROOT --gcc-toolchain=$GCC $CPUFLAGS"
+LDFLAGS="--target=$TRIPLE --sysroot=$SYSROOT --gcc-toolchain=$GCC -fuse-ld=lld $EXTRALIBS"
 
 if [ -f "$OUT/lib/libavcodec.so" ]; then
 	echo "reusing cached ffmpeg build in $OUT"
@@ -76,15 +85,17 @@ cd "$SRC"
 	--ranlib="$LLVM/bin/llvm-ranlib" \
 	--strip="$LLVM/bin/llvm-strip" \
 	--sysroot="$SYSROOT" \
-	--extra-cflags="--target=$TRIPLE $CPUFLAGS -fPIC" \
-	--extra-ldflags="--target=$TRIPLE" \
+	--extra-cflags="$CFLAGS -fPIC" \
+	--extra-ldflags="$LDFLAGS" \
+	--enable-pic \
 	--enable-shared --disable-static \
 	--disable-programs --disable-doc --disable-postproc \
 	--disable-everything \
 	--enable-decoder=bink,binkaudio_dct,binkaudio_rdft \
 	--enable-demuxer=bink \
 	--enable-protocol=file \
-	--enable-avdevice --enable-avfilter --enable-swresample --enable-swscale
+	--enable-avdevice --enable-avfilter --enable-swresample --enable-swscale \
+	|| { echo "ffmpeg configure failed"; tail -n 120 ffbuild/config.log; exit 1; }
 
 make -j"$(nproc)"
 make install
