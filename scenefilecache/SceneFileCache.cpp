@@ -84,10 +84,13 @@ InitReturnVal_t CSceneFileCache::Init()
 		if ( filesystem->ReadFile( pSceneImageName, "GAME", m_SceneImageFile ) )
 		{
 			SceneImageHeader_t *pHeader = (SceneImageHeader_t *)m_SceneImageFile.Base();
-			if ( pHeader->nId != SCENE_IMAGE_ID ||
+			if ( m_SceneImageFile.TellMaxPut() < (int)sizeof( SceneImageHeader_t ) ||
+				pHeader->nId != SCENE_IMAGE_ID ||
 				pHeader->nVersion != SCENE_IMAGE_VERSION )
 			{
-				Error( "CSceneFileCache: Bad scene image file %s\n", pSceneImageName );
+				// Not fatal: scenes are then read from the loose .vcd files.
+				Warning( "CSceneFileCache: Bad scene image file %s, ignoring it\n", pSceneImageName );
+				m_SceneImageFile.Purge();
 			}
 		}
 		else
