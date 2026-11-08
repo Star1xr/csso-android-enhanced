@@ -18,6 +18,13 @@ def build(bld):
 	if bld.env.DEST_OS == 'win32':
 		return
 
+	# ffmpeg prebuilts only ship for aarch64 on android, so bink can't be linked
+	# for 32 bit (lib/android/arm has no libav*). It is loaded on demand by
+	# video_services, so simply leaving it out is fine.
+	if bld.env.DEST_OS == 'android' and not os.path.exists(
+			os.path.join(bld.top_dir, 'lib', 'android', bld.env.DEST_CPU, 'libavcodec.so')):
+		return
+
 	source = [
 		'bink_video.cpp',
 		'bink_material.cpp',
