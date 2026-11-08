@@ -8,7 +8,9 @@ Source engine port author: nillerusr
 on this shitty fork
 
 [ ] dxvk native (https://github.com/Star1xr/dxvk-native-android)
+
 [x] useless full ci build
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
