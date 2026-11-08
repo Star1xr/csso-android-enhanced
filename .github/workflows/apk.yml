@@ -40,6 +40,12 @@ jobs:
           # waf installs into output/<abi>/lib/<abi>/; grab every .so below output/<abi>
           # (the launcher ships its own libSDL2.so, so skip that one to keep its copy)
           find "output/$abi" -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
+          # video_bink links ffmpeg at runtime, so ship the prebuilts next to it
+          case "$abi" in
+            armeabi-v7a) cpu=arm ;;
+            arm64-v8a)   cpu=aarch64 ;;
+          esac
+          find "lib/android/$cpu" -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
           echo "--- $abi jniLibs ---"
           ls -1 "$dest"
           n=$(find "$dest" -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' | wc -l)

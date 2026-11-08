@@ -32,6 +32,18 @@ runs:
         key: ccache-${{ inputs.abi }}-${{ github.sha }}
         restore-keys: ccache-${{ inputs.abi }}-
 
+    - name: Cache ffmpeg
+      uses: actions/cache@v4
+      with:
+        path: |
+          ffmpeg-out-arm
+          ffmpeg-out-aarch64
+        key: ffmpeg-6.1-${{ inputs.abi }}-v1
+
+    - name: Build ffmpeg for bink
+      shell: bash
+      run: scripts/build-ffmpeg-android.sh "${{ inputs.abi }}"
+
     - name: Build
       shell: bash
       env:
