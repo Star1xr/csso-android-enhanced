@@ -183,8 +183,9 @@ def run_test(self, fragment, msg):
 def define_platform(conf):
 	conf.env.DEDICATED = conf.options.DEDICATED
 	conf.env.TESTS = conf.options.TESTS
-	conf.env.TOGLES = conf.options.TOGLES
-	conf.env.GL = conf.options.GL and not conf.options.TESTS and not conf.options.DEDICATED
+	conf.env.DXVK = conf.options.DXVK and not conf.options.TESTS and not conf.options.DEDICATED
+	conf.env.TOGLES = conf.options.TOGLES and not conf.env.DXVK
+	conf.env.GL = conf.options.GL and not conf.options.TESTS and not conf.options.DEDICATED and not conf.env.DXVK
 	conf.env.OPUS = conf.options.OPUS
 
 	arch32 = conf.run_test(CPP_32BIT_CHECK, 'Testing 32bit support')
@@ -207,8 +208,12 @@ def define_platform(conf):
 			'BINK_VIDEO'
 		])
 
-	if conf.options.TOGLES:
+	if conf.env.TOGLES:
 		conf.env.append_unique('DEFINES', ['TOGLES'])
+
+	if conf.env.DXVK:
+		# No DX_TO_GL_ABSTRACTION: shaderapidx9 talks real D3D9, provided by libdxvk_d3d9.so
+		conf.env.append_unique('DEFINES', ['DXVK_NATIVE', 'BINK_VIDEO'])
 
 	if conf.options.TESTS:
 		conf.define('UNITTESTS', 1)
@@ -319,6 +324,12 @@ def options(opt):
 	grp.add_option('--togles', action = 'store_true', dest = 'TOGLES', default = False,
 		help = 'build engine with ToGLES [default: %default]')
 
+	grp.add_option('--dxvk', action = 'store_true', dest = 'DXVK', default = False,
+		help = 'build engine on DXVK native (D3D9 -> Vulkan) instead of ToGL/ToGLES, Android only [default: %default]')
+
+	grp.add_option('--dxvk-dir', action = 'store', dest = 'DXVK_DIR', type = 'string', default = 'thirdparty/dxvk-native-android',
+		help = 'path to a dxvk-native-android checkout (headers from include/native) [default: %default]')
+
 	# TODO(nillerusr): add wscript for opus building
 	grp.add_option('--enable-opus', action = 'store_true', dest = 'OPUS', default = False,
 		help = 'build engine with Opus voice codec [default: %default]')
@@ -423,6 +434,8 @@ def check_deps(conf):
 			conf.check(lib='ssl', uselib_store='SSL')
 		conf.check(lib='android_support', uselib_store='ANDROID_SUPPORT')
 		conf.check(lib='opus', uselib_store='OPUS')
+		if conf.env.DXVK:
+			conf.check(lib='dxvk_d3d9', uselib_store='DXVK_D3D9')
 
 	if conf.env.DEST_OS == 'win32':
 		conf.check(lib='libz', uselib_store='ZLIB', define_name='USE_ZLIB')
@@ -523,6 +536,10 @@ def configure(conf):
 			'-llog',
 			'-lz'
 		]
+
+		if conf.env.DXVK:
+			dxvk_inc = os.path.abspath(conf.options.DXVK_DIR)+'/include/native/'
+			flags += ['-I'+dxvk_inc+'directx', '-I'+dxvk_inc+'windows']
 
 		flags += ['-funwind-tables', '-g']
 	elif conf.env.COMPILER_CC != 'msvc' and conf.env.DEST_OS != 'darwin' and conf.env.DEST_CPU in ['x86', 'x86_64']:
@@ -639,6 +656,9 @@ def build(bld):
 		sdl_path = os.path.join('lib', bld.env.DEST_OS, bld.env.DEST_CPU, sdl_name)
 		bld.install_files(bld.env.LIBDIR, [sdl_path])
 
+		if bld.env.DXVK:
+			bld.install_files(bld.env.LIBDIR, [os.path.join('lib', bld.env.DEST_OS, bld.env.DEST_CPU, 'libdxvk_d3d9.so')])
+
 	if bld.env.DEST_OS == 'win32':
 		projects['game'] += ['utils/bzip2']
 		projects['dedicated'] += ['utils/bzip2']
@@ -655,5 +675,6 @@ def build(bld):
 			projects['game'] += ['togles']
 		elif bld.env.GL:
 			projects['game'] += ['togl']
+		# DXVK: neither (libdxvk_d3d9.so is prebuilt, see .github/workflows/apk-dxvk.yml)
 
 		bld.add_subproject(projects['game'])

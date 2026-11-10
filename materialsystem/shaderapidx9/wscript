@@ -67,7 +67,12 @@ def build(bld):
 
 	defines = []
 
-	libs = ['tier0','tier1','tier2','vstdlib','togl','bitmap','mathlib']
+	libs = ['tier0','tier1','tier2','vstdlib','bitmap','mathlib']
+
+	if bld.env.DXVK:
+		libs += ['DXVK_D3D9']
+	else:
+		libs += ['togl']
 
 	if bld.env.DEST_OS == 'android':
 		libs += ['ANDROID_SUPPORT']

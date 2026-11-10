@@ -10,6 +10,11 @@
 
 #include "appframework/ilaunchermgr.h"
 
+#if defined( DXVK_NATIVE )
+#include <SDL.h>
+#include <SDL_vulkan.h>
+#endif
+
 // LINUX path taken from //Steam/main/src/tier0/platform_posix.cpp - Returns installed RAM in MB. 
 static unsigned long GetInstalledRAM()
 {
@@ -85,9 +90,23 @@ void SetThreadAffinityMask( void *hThread, int nMask )
 	DebuggerBreak();
 }
 
+#if defined( DXVK_NATIVE )
+void toglGetClientRect( VD3DHWND hWnd, RECT *destRect )
+{
+	// The canvas size is the Vulkan drawable size (differs from the window size on high-DPI screens)
+	int width = 0, height = 0;
+	SDL_Vulkan_GetDrawableSize( (SDL_Window *)hWnd, &width, &height );
+
+	destRect->left = 0;
+	destRect->top = 0;
+	destRect->right = width;
+	destRect->bottom = height;
+}
+#else
 bool GUID::operator==( const struct _GUID &other ) const
 {
 	DebuggerBreak();
 	return memcmp( this, &other, sizeof( GUID ) ) == 0;
 }
+#endif
 #endif

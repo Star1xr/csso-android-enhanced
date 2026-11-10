@@ -23,7 +23,9 @@
 //  THE SOFTWARE.
 //
 
-#ifdef TOGLES
+#if defined(DXVK_NATIVE)
+#include "togl/dxvk_native.h"
+#elif defined(TOGLES)
 #include "togles/rendermechanism.h"
 #else
 

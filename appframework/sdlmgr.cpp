@@ -819,6 +819,9 @@ bool CSDLMgr::CreateHiddenGameWindow( const char *pTitle, int width, int height 
 	int flags = SDL_WINDOW_HIDDEN;
 #if defined( DX_TO_GL_ABSTRACTION )
 	flags |= SDL_WINDOW_OPENGL;
+#elif defined( DXVK_NATIVE )
+	// DXVK presents through an SDL_Window* that must be Vulkan-capable
+	flags |= SDL_WINDOW_VULKAN;
 #endif
 	m_Window = SDL_CreateWindow( pTitle, x, y, width, height, flags );
 

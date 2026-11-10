@@ -1,0 +1,131 @@
+name: Build APK (DXVK)
+
+# DXVK variant (D3D9 -> Vulkan, branch feature/dxvk-native-android): builds libdxvk_d3d9.so from
+# Star1xr/dxvk-native-android, then the engine libs with --dxvk (32 + 64 bit), and packs them into the
+# CS:SO launcher (ndke01/csso-android-launcher, Gradle). Needs Android 7.0+ (Vulkan, API 24).
+# The GLES build lives in apk.yml on csso-1.2. Manual only.
+on: workflow_dispatch
+
+env:
+  WAF_EXTRA: --use-ccache
+  LAUNCHER_REPO: https://github.com/ndke01/csso-android-launcher
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # libSDL2.so + SDL headers (lib/, thirdparty/SDL) are needed to build DXVK
+        submodules: recursive
+
+    - name: Install DXVK build tools
+      run: |
+        sudo apt-get update && sudo apt-get install -y glslang-tools
+        pip install --user meson ninja
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Build DXVK (32 bit)
+      run: scripts/build-dxvk-android.sh armeabi-v7a
+
+    - name: Build DXVK (64 bit)
+      run: scripts/build-dxvk-android.sh arm64-v8a
+
+    - name: Upload DXVK libs
+      uses: actions/upload-artifact@v7
+      with:
+        name: dxvk-libs
+        path: |
+          lib/android/arm/libdxvk_d3d9.so
+          lib/android/aarch64/libdxvk_d3d9.so
+        if-no-files-found: error
+
+    - name: Build libs (32 bit)
+      uses: ./.github/actions/android-build
+      with:
+        script: build-android-armv7a-dxvk.sh
+        abi: armeabi-v7a
+
+    - name: Build libs (64 bit)
+      uses: ./.github/actions/android-build
+      with:
+        script: build-android-aarch64-dxvk.sh
+        abi: arm64-v8a
+
+    - name: Get the launcher
+      run: |
+        # "launcher/" already exists in this repo (engine launcher sources), so clone elsewhere
+        rm -rf launcher-app
+        git clone --depth 1 "$LAUNCHER_REPO" launcher-app
+
+    - name: Put the libs into the launcher
+      run: |
+        for abi in armeabi-v7a arm64-v8a; do
+          dest="launcher-app/app/src/main/jniLibs/$abi"
+          mkdir -p "$dest"
+          # waf installs into output/<abi>/lib/<abi>/; grab every .so below output/<abi>
+          # (the launcher ships its own libSDL2.so, so skip that one to keep its copy)
+          find "output/$abi" -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
+          # video_bink links ffmpeg at runtime, so ship the prebuilts next to it
+          case "$abi" in
+            armeabi-v7a) cpu=arm ;;
+            arm64-v8a)   cpu=aarch64 ;;
+          esac
+          find "lib/android/$cpu" -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' -exec cp -v {} "$dest/" \;
+          echo "--- $abi jniLibs ---"
+          ls -1 "$dest"
+          n=$(find "$dest" -maxdepth 1 -name '*.so' ! -name 'libSDL2.so' | wc -l)
+          echo "$abi: $n engine libs copied"
+          [ "$n" -gt 0 ] || { echo "::error::$abi: no engine libs were built/installed"; exit 1; }
+        done
+
+    - name: Pack extras_dir.vpk
+      working-directory: launcher-app/scripts
+      run: bash build-vpk.sh
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Install Android platform 29
+      run: |
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-29" "build-tools;34.0.0"
+
+    - name: Build release APK
+      working-directory: launcher-app
+      run: |
+        chmod +x gradlew
+        ./gradlew --no-daemon assembleRelease
+
+    - name: Verify APK contains both ABIs and every lib
+      run: |
+        APK=$(ls launcher-app/app/build/outputs/apk/release/*.apk | head -1)
+        unzip -Z1 "$APK" | grep '^lib/'
+        for abi in armeabi-v7a arm64-v8a; do
+          n=0
+          for f in launcher-app/app/src/main/jniLibs/$abi/*.so; do
+            name=$(basename "$f")
+            unzip -Z1 "$APK" | grep -qx "lib/$abi/$name" || {
+              echo "::error::$APK is missing lib/$abi/$name"; exit 1;
+            }
+            n=$((n+1))
+          done
+          echo "$abi: $n libs present in APK"
+        done
+
+    - name: Sign APK
+      run: |
+        APK=$(ls launcher-app/app/build/outputs/apk/release/*.apk | head -1)
+        keytool -genkeypair -keystore csso.keystore -alias csso -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass android -keypass android -dname "CN=CSSO"
+        "$ANDROID_HOME/build-tools/34.0.0/zipalign" -f -p 4 "$APK" aligned.apk
+        "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign --ks csso.keystore --ks-pass pass:android --key-pass pass:android \
+          --out csso-dxvk-release.apk aligned.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v7
+      with:
+        path: csso-dxvk-release.apk
+        archive: false
