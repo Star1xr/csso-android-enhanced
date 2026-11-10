@@ -15,6 +15,7 @@
 
 #include <vgui/ISystem.h>
 #include <vgui/ISurface.h>
+#include <vgui/ILocalize.h>
 
 #include "LabeledCommandComboBox.h"
 #include "cvarslider.h"
@@ -64,6 +65,18 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Top", "hud_playercount_pos 0" );
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Bottom", "hud_playercount_pos 1" );
+
+	// The strings are normally in gameui_<language>.txt. This repo doesn't ship those, so register
+	// an English fallback when the loaded language files don't know the tokens yet.
+	if ( g_pVGuiLocalize )
+	{
+		wchar_t szAlive[]   = L"Alive count";
+		wchar_t szAvatars[] = L"Player avatars";
+		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Alive" ) )
+			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Alive", szAlive, "" );
+		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Avatars" ) )
+			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Avatars", szAvatars, "" );
+	}
 
 	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Alive", "hud_teamcounter_style 0" );
 	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Avatars", "hud_teamcounter_style 1" );
