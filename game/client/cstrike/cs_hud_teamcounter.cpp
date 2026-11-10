@@ -36,6 +36,23 @@ using namespace vgui;
 ConVar hud_playercount_pos( "hud_playercount_pos", "0", FCVAR_ARCHIVE,
         "0 = top of screen, 1 = bottom of screen" );
 
+// Team counter style. Selected from Mod Options -> HUD.
+//   0 = alive count (original team counter)
+//   1 = player avatars
+enum TeamCounterStyle_t
+{
+        TC_STYLE_ALIVE   = 0,
+        TC_STYLE_AVATARS = 1,
+};
+
+ConVar hud_teamcounter_style( "hud_teamcounter_style", "0", FCVAR_ARCHIVE,
+        "Team counter style: 0 = alive count, 1 = player avatars",
+        true, 0, true, 1 );
+
+// Each style has its own layout file.
+#define TC_RES_AVATARS  "resource/hud/teamcounter.res"
+#define TC_RES_ALIVE    "resource/hud/teamcounter_alive.res"
+
 static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 
 //-----------------------------------------------------------------------------
@@ -71,6 +88,7 @@ public:
         virtual ~CHudTeamCounter() {}
 
         virtual void Init( void );
+        virtual void ApplySettings( KeyValues *inResourceData );
         virtual void ApplySchemeSettings( IScheme *pScheme );
         virtual void PerformLayout();
         virtual void PaintBackground();
@@ -82,7 +100,11 @@ private:
         //-------------------------------------------------------------------------
         // Internal helpers
         //-------------------------------------------------------------------------
-        void    UpdateAvatarMode();
+        void    ApplyStyle( int iStyle );               // switch between alive count / avatars
+        void    UpdateAvatarMode();                     // avatars style: assign players to slots
+        void    UpdateAliveMode();                      // alive count style: alive counters / skulls
+        void    UpdateAlivePosition();                  // alive count style: top / bottom position
+        void    UpdateRoundTimer();                     // timer text + bomb icon
         void    Layout();
         int             ScalePx( float basePixels ) const;
 
@@ -93,6 +115,21 @@ private:
         Label           *m_pCTWinCounterLabel;          // CT win score
         Label           *m_pTWinCounterLabel;           // T win score
         VectorImagePanel *m_pBombIcon;                  // C4 bomb icon (shown when planted)
+
+        //-------------------------------------------------------------------------
+        // Alive count style (original team counter). Only visible in that style.
+        // Positioned by teamcounter_alive.res
+        //-------------------------------------------------------------------------
+        Label           *m_pCTAliveCounterLabel;
+        Label           *m_pCTAliveTextLabel;
+        Label           *m_pTAliveCounterLabel;
+        Label           *m_pTAliveTextLabel;
+        ImagePanel      *m_pCTSkullImage;               // shown when no CT is alive
+        ImagePanel      *m_pTSkullImage;                // shown when no T is alive
+
+        int             m_iStyle;                       // TeamCounterStyle_t, -1 = not applied yet
+        int             m_iOriginalXPos;                // panel pos from the alive .res (top position)
+        int             m_iOriginalYPos;
 
         //-------------------------------------------------------------------------
         // Per-player avatar slots
@@ -159,6 +196,20 @@ CHudTeamCounter::CHudTeamCounter( const char *pElementName )
         m_pBombIcon = new VectorImagePanel( this, "BombIcon" );
 
         //
+        // Alive count style controls (original team counter). Layout comes from teamcounter_alive.res
+        //
+        m_iStyle                = -1;
+        m_iOriginalXPos         = 0;
+        m_iOriginalYPos         = 0;
+
+        m_pCTAliveCounterLabel  = new Label( this, "CTAliveCounterLabel", "0" );
+        m_pCTAliveTextLabel     = new Label( this, "CTAliveTextLabel", "#Cstrike_PlayerCount_Alive" );
+        m_pTAliveCounterLabel   = new Label( this, "TAliveCounterLabel", "0" );
+        m_pTAliveTextLabel      = new Label( this, "TAliveTextLabel", "#Cstrike_PlayerCount_Alive" );
+        m_pCTSkullImage         = new ImagePanel( this, "CTSkullImage" );
+        m_pTSkullImage          = new ImagePanel( this, "TSkullImage" );
+
+        //
         // Per-player avatar/skull slots
         //
         for ( int i = 0; i < TC_MAX_AVATAR_SLOTS; i++ )
@@ -214,8 +265,60 @@ CHudTeamCounter::CHudTeamCounter( const char *pElementName )
         m_iNumActiveCTSlots = 0;
         m_iNumActiveTSlots      = 0;
 
-        // Load label settings from .res file (fonts, colors, etc.)
-        LoadControlSettings( "resource/hud/teamcounter.res" );
+        // Load the layout (.res) for the selected style
+        ApplyStyle( clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS ) );
+}
+
+
+//-----------------------------------------------------------------------------
+// ApplyStyle
+//
+// Switches the team counter between "alive count" and "avatars".
+// Each style has its own .res file, so the .res is reloaded on every switch.
+// (Controls created in code survive a reload, only .res-created ones are rebuilt.)
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::ApplyStyle( int iStyle )
+{
+        m_iStyle = iStyle;
+
+        const bool bAvatars = ( m_iStyle == TC_STYLE_AVATARS );
+
+        // Load the layout of the new style (fonts, colors, positions, ...)
+        LoadControlSettings( bAvatars ? TC_RES_AVATARS : TC_RES_ALIVE );
+
+        // Hide everything that belongs to the other style
+        m_pCTAliveCounterLabel->SetVisible( !bAvatars );
+        m_pCTAliveTextLabel->SetVisible( !bAvatars );
+        m_pTAliveCounterLabel->SetVisible( !bAvatars );
+        m_pTAliveTextLabel->SetVisible( !bAvatars );
+        m_pCTSkullImage->SetVisible( false );
+        m_pTSkullImage->SetVisible( false );
+
+        // The bomb icon only exists in the avatars layout
+        m_pBombIcon->SetVisible( false );
+
+        // Drop avatar slot state so avatars are re-assigned when switching back
+        m_iNumActiveCTSlots = 0;
+        m_iNumActiveTSlots  = 0;
+        for ( int i = 0; i < TC_MAX_AVATAR_SLOTS; i++ )
+        {
+                m_CTSlots[i].iLastPlayerIndex = 0;
+                m_CTSlots[i].bIsAlive = false;
+                m_CTSlots[i].pAvatar->SetVisible( false );
+                m_CTSlots[i].pSkull->SetVisible( false );
+
+                m_TSlots[i].iLastPlayerIndex = 0;
+                m_TSlots[i].bIsAlive = false;
+                m_TSlots[i].pAvatar->SetVisible( false );
+                m_TSlots[i].pSkull->SetVisible( false );
+        }
+
+        // Position: avatars compute it in Layout(), alive count uses the .res position
+        m_bIsAtTheBottom = hud_playercount_pos.GetBool();
+        if ( bAvatars )
+                InvalidateLayout( true, false );
+        else
+                UpdateAlivePosition();
 }
 
 
@@ -226,6 +329,31 @@ void CHudTeamCounter::Init( void )
 {
         m_iRoundTime            = 0;
         m_bIsAtTheBottom        = false;
+}
+
+
+//-----------------------------------------------------------------------------
+// ApplySettings – remember where the alive count layout puts the panel
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::ApplySettings( KeyValues *inResourceData )
+{
+        BaseClass::ApplySettings( inResourceData );
+
+        // Avatars style computes its own position in Layout()
+        if ( m_iStyle == TC_STYLE_ALIVE )
+                GetPos( m_iOriginalXPos, m_iOriginalYPos );
+}
+
+
+//-----------------------------------------------------------------------------
+// UpdateAlivePosition – alive count style: top (as in .res) or bottom (mirrored)
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::UpdateAlivePosition()
+{
+        if ( m_bIsAtTheBottom )
+                SetPos( m_iOriginalXPos, ScreenHeight() - m_iOriginalYPos - GetTall() ); // inverse its Y pos
+        else
+                SetPos( m_iOriginalXPos, m_iOriginalYPos );
 }
 
 
@@ -361,7 +489,10 @@ void CHudTeamCounter::Layout()
 void CHudTeamCounter::PerformLayout()
 {
         BaseClass::PerformLayout();
-        Layout();
+
+        // Alive count style is fully positioned by teamcounter_alive.res
+        if ( m_iStyle == TC_STYLE_AVATARS )
+                Layout();
 }
 
 
@@ -373,6 +504,10 @@ void CHudTeamCounter::PerformLayout()
 void CHudTeamCounter::PaintBackground()
 {
         BaseClass::PaintBackground();
+
+        // Team outlines belong to the avatars style only
+        if ( m_iStyle != TC_STYLE_AVATARS )
+                return;
 
         vgui::ISurface *pSurface = vgui::surface();
         if ( !pSurface )
@@ -537,12 +672,23 @@ void CHudTeamCounter::UpdateAvatarMode()
 void CHudTeamCounter::OnThink()
 {
         //--------------------------------------------------------------------------
+        // Style toggle (alive count / avatars)
+        //--------------------------------------------------------------------------
+        int iStyle = clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS );
+        if ( m_iStyle != iStyle )
+                ApplyStyle( iStyle );
+
+        //--------------------------------------------------------------------------
         // Position toggle (top / bottom)
         //--------------------------------------------------------------------------
         if ( m_bIsAtTheBottom != hud_playercount_pos.GetBool() )
         {
                 m_bIsAtTheBottom = hud_playercount_pos.GetBool();
-                InvalidateLayout( true, false );
+
+                if ( m_iStyle == TC_STYLE_AVATARS )
+                        InvalidateLayout( true, false );
+                else
+                        UpdateAlivePosition();
         }
 
         //--------------------------------------------------------------------------
@@ -565,17 +711,104 @@ void CHudTeamCounter::OnThink()
         }
 
         //--------------------------------------------------------------------------
-        // Update avatar slots
+        // Style specific part: avatar slots or alive counters
         //--------------------------------------------------------------------------
-        UpdateAvatarMode();
+        if ( m_iStyle == TC_STYLE_AVATARS )
+                UpdateAvatarMode();
+        else
+                UpdateAliveMode();
 
         //--------------------------------------------------------------------------
-        // Round timer / C4 bomb icon (from original script)
+        // Round timer (+ C4 bomb icon in avatars style)
         //--------------------------------------------------------------------------
+        UpdateRoundTimer();
+}
+
+
+//=============================================================================
+// UpdateAliveMode – original team counter: alive counters, skull when team is dead
+//=============================================================================
+void CHudTeamCounter::UpdateAliveMode()
+{
+        if ( !g_PR )
+                return;
+
+        // Count the alive players of each team
+        int iCTCounter = 0;
+        int iTCounter = 0;
+        for ( int playerIndex = 1; playerIndex <= MAX_PLAYERS; playerIndex++ )
+        {
+                if ( g_PR->IsConnected( playerIndex ) && g_PR->IsAlive( playerIndex ) )
+                {
+                        if ( g_PR->GetTeam( playerIndex ) == TEAM_CT )
+                                iCTCounter++;
+
+                        if ( g_PR->GetTeam( playerIndex ) == TEAM_TERRORIST )
+                                iTCounter++;
+                }
+        }
+
+        wchar_t unicode[8];
+
+        V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", iCTCounter );
+        m_pCTAliveCounterLabel->SetText( unicode );
+
+        V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", iTCounter );
+        m_pTAliveCounterLabel->SetText( unicode );
+
+        m_pCTAliveCounterLabel->SetVisible( iCTCounter > 0 );
+        m_pCTAliveTextLabel->SetVisible( iCTCounter > 0 );
+        m_pTAliveCounterLabel->SetVisible( iTCounter > 0 );
+        m_pTAliveTextLabel->SetVisible( iTCounter > 0 );
+        m_pCTSkullImage->SetVisible( iCTCounter < 1 );
+        m_pTSkullImage->SetVisible( iTCounter < 1 );
+}
+
+
+//=============================================================================
+// UpdateRoundTimer – round timer text and (avatars style) the C4 bomb icon
+//=============================================================================
+void CHudTeamCounter::UpdateRoundTimer()
+{
+        wchar_t unicode[8];
+
         C_CSGameRules *pRules = CSGameRules();
         if ( !pRules )
                 return;
 
+        //--------------------------------------------------------------------------
+        // Alive count style: original round timer behaviour
+        //--------------------------------------------------------------------------
+        if ( m_iStyle != TC_STYLE_AVATARS )
+        {
+                if ( m_iRoundTime < (int)ceil( pRules->GetRoundRemainingTime() ) )
+                        g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerReset" );
+
+                m_iRoundTime = (int)ceil( pRules->GetRoundRemainingTime() );
+
+                if ( pRules->IsWarmupPeriod() && !pRules->IsWarmupPeriodPaused() )
+                        m_iRoundTime = (int)ceil( pRules->GetWarmupRemainingTime() );
+
+                if ( pRules->IsFreezePeriod() )
+                {
+                        // in freeze period countdown to round start time
+                        m_iRoundTime = (int)ceil( pRules->GetRoundStartTime() - gpGlobals->curtime );
+                }
+
+                if ( m_iRoundTime < 0 )
+                        m_iRoundTime = 0;
+
+                if ( m_iRoundTime <= 10 )
+                        g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerLow" );
+
+                V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d : %.2d", m_iRoundTime / 60, m_iRoundTime % 60 );
+                m_pRoundTimerLabel->SetText( unicode );
+                return;
+        }
+
+        //--------------------------------------------------------------------------
+        // Avatars style: round timer / C4 bomb icon (from original script)
+        //--------------------------------------------------------------------------
         // Check if bomb is planted
         bool bBombPlanted = ( g_PlantedC4s.Count() > 0 );
 

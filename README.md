@@ -62,7 +62,7 @@ This project is using waf buildsystem. If you have waf-related questions look ht
 - Spam Inspection Animation
 - Backgrounds changing Fixed (missed libs TF)
 - HeadName like CS:GO (Re-worked on vibecode) [ `cl_headname "1/0"` ]
-- New Teamcounter that's display avatars (Simple Script)
+- New Teamcounter that's display avatars (Simple Script). Optional: choose it in Mod Options -> HUD (`hud_teamcounter_style 0` = alive count (original), `1` = avatars). The alive count style needs `resource/hud/teamcounter_alive.res` (the original `teamcounter.res`) and the avatars style uses `resource/hud/teamcounter.res`
 - Radio Menu (i didn't commit yet here)
 - Vignette Script (or fade with ability to adjust & enable/disable) write in console `csgo_` and commands will appear
 - `touch_disable_on_buymenu` Cvar (Already exist. lol)

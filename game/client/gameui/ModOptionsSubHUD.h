@@ -41,6 +41,7 @@ protected:
 
 private:
 	CLabeledCommandComboBox*	m_pPlayerCountPos;
+	CLabeledCommandComboBox*	m_pTeamCounterStyle;
 	CLabeledCommandComboBox*	m_pHealthAmmoStyle;
 	CLabeledCommandComboBox*	m_pHUDColor;
 	CCvarSlider*				m_pHUDBackgroundAlpha;

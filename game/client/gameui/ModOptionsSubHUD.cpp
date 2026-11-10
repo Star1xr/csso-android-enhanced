@@ -51,6 +51,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	//=========
 	m_pPlayerCountPos = new CLabeledCommandComboBox( this, "PlayerCountPositionComboBox" );
+	m_pTeamCounterStyle = new CLabeledCommandComboBox( this, "TeamCounterStyleComboBox" );
 	m_pHealthAmmoStyle = new CLabeledCommandComboBox( this, "HealthAmmoStyleComboBox" );
 	m_pHUDColor = new CLabeledCommandComboBox( this, "HUDColorComboBox" );
 	m_pHUDBackgroundAlpha = new CCvarSlider( this, "HUDBackgroundAlphaSlider", "", 0.0f, 1.0f, "cl_hud_background_alpha" );
@@ -63,6 +64,9 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Top", "hud_playercount_pos 0" );
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Bottom", "hud_playercount_pos 1" );
+
+	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Alive", "hud_teamcounter_style 0" );
+	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Avatars", "hud_teamcounter_style 1" );
 
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_0", "cl_hud_healthammo_style 0" );
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_1", "cl_hud_healthammo_style 1" );
@@ -90,6 +94,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	}
 
 	m_pPlayerCountPos->AddActionSignalTarget( this );
+	m_pTeamCounterStyle->AddActionSignalTarget( this );
 	m_pHealthAmmoStyle->AddActionSignalTarget( this );
 	m_pHUDColor->AddActionSignalTarget( this );
 	m_pHUDBackgroundAlpha->AddActionSignalTarget( this );
@@ -101,6 +106,39 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pMenuAgent->AddActionSignalTarget( this );
 
 	LoadControlSettings( "Resource/ModOptionsSubHUD.res" );
+
+	// Fallback for a ModOptionsSubHUD.res that doesn't know "TeamCounterStyleComboBox" yet:
+	// a control the .res didn't position is still at 0,0. Put it right under the team counter
+	// position combo box and push the controls below it down by one row.
+	// (Add "TeamCounterStyleComboBox" to the .res to control its position yourself.)
+	int csX, csY, csW, csT;
+	m_pTeamCounterStyle->GetBounds( csX, csY, csW, csT );
+	if ( csX == 0 && csY == 0 )
+	{
+		int px, py, pw, pt;
+		m_pPlayerCountPos->GetBounds( px, py, pw, pt );
+
+		int step = pt + MAX( 2, pt / 4 );
+		int belowY = py + pt;
+
+		for ( int i = 0; i < GetChildCount(); i++ )
+		{
+			Panel *pChild = GetChild( i );
+			if ( !pChild || pChild == m_pTeamCounterStyle )
+				continue;
+
+			// bottom buttons stay where they are
+			if ( !Q_stricmp( pChild->GetName(), "OK" ) || !Q_stricmp( pChild->GetName(), "Cancel" ) || !Q_stricmp( pChild->GetName(), "Apply" ) )
+				continue;
+
+			int cx, cy;
+			pChild->GetPos( cx, cy );
+			if ( cy >= belowY )
+				pChild->SetPos( cx, cy + step );
+		}
+
+		m_pTeamCounterStyle->SetBounds( px, py + step, pw, pt );
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -127,6 +165,10 @@ void CModOptionsSubHUD::OnResetData()
 	ConVarRef hud_playercount_pos( "hud_playercount_pos" );
 	if ( hud_playercount_pos.IsValid() )
 		m_pPlayerCountPos->SetInitialItem( hud_playercount_pos.GetInt() );
+
+	ConVarRef hud_teamcounter_style( "hud_teamcounter_style" );
+	if ( hud_teamcounter_style.IsValid() )
+		m_pTeamCounterStyle->SetInitialItem( hud_teamcounter_style.GetInt() );
 
 	ConVarRef cl_hud_healthammo_style( "cl_hud_healthammo_style" );
 	if ( cl_hud_healthammo_style.IsValid() )
@@ -160,6 +202,7 @@ void CModOptionsSubHUD::OnResetData()
 void CModOptionsSubHUD::OnApplyChanges()
 {
 	m_pPlayerCountPos->ApplyChanges();
+	m_pTeamCounterStyle->ApplyChanges();
 	m_pHealthAmmoStyle->ApplyChanges();
 	m_pHUDColor->ApplyChanges();
 	m_pHUDBackgroundAlpha->ApplyChanges();
