@@ -957,6 +957,19 @@ void Frame::DoModal( )
 	Activate();
 	m_hPreviousModal = vgui::input()->GetAppModalSurface();
 	vgui::input()->SetAppModalSurface( GetVPanel() );
+
+	if ( IsAndroid() )
+	{
+		// With a physical mouse vgui gives focus to whatever is under the cursor. The cursor is
+		// usually still on the button that opened the dialog, so the dialog never gets focus: it
+		// draws with its out-of-focus (transparent) background and can't be clicked. Touch input
+		// positions the cursor on every tap, which is why it works there. Put the cursor on the dialog.
+		int x, y, w, t, cx, cy;
+		GetBounds( x, y, w, t );
+		vgui::input()->GetCursorPos( cx, cy );
+		if ( cx < x || cx >= x + w || cy < y || cy >= y + t )
+			vgui::input()->SetCursorPos( x + w / 2, y + t / 2 );
+	}
 }
 
 
@@ -1090,6 +1103,10 @@ void Frame::OnThink()
 			    hasFocus = true;
 		    }
 	    }
+
+		// A modal dialog is always the active window, even if the mouse is somewhere else
+		if ( input()->GetAppModalSurface() == GetVPanel() )
+			hasFocus = true;
     }
 	if (hasFocus != m_bHasFocus)
 	{
