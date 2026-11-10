@@ -18,13 +18,15 @@
 #include "tier0/platform.h"
 
 // DXVK's windows_base.h typedefs a few Win32 types differently from the engine's own
-// (ULONG is 'unsigned long' and HANDLE an integer in tier0). Rename the DXVK ones while its
+// (ULONG is 'unsigned long', HANDLE/HMODULE are integers in tier0). Rename the DXVK ones while its
 // headers are parsed; the sizes match, and the engine's definitions stay untouched afterwards.
-#define ULONG  DXVK_ULONG
-#define HANDLE DXVK_HANDLE
+#define ULONG   DXVK_ULONG
+#define HANDLE  DXVK_HANDLE
+#define HMODULE DXVK_HMODULE
 #include <d3d9.h>
 #undef ULONG
 #undef HANDLE
+#undef HMODULE
 
 // The window handle handed to D3D9 is an SDL_Window* created with SDL_WINDOW_VULKAN.
 typedef void *VD3DHWND;
