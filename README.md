@@ -15,6 +15,8 @@ on this shitty fork
 
 - [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
 
+- [x] Better CS:GO chat
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
