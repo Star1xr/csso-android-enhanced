@@ -1486,6 +1486,9 @@ int CShaderDeviceMgrDx8::GetVidMemBytes( int nAdapter ) const
 {
 #if defined( _X360 )
 	return 256*1024*1024;
+#elif defined( DXVK_NATIVE )
+	// D3DADAPTER_IDENTIFIER9 has no video memory field; report a conservative amount
+	return 1024*1024*1024;
 #elif defined (DX_TO_GL_ABSTRACTION)
 	D3DADAPTER_IDENTIFIER9 devIndentifier;
 	D3D()->GetAdapterIdentifier( nAdapter, D3DENUM_WHQL_LEVEL, &devIndentifier );

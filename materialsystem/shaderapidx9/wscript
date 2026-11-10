@@ -74,7 +74,7 @@ def build(bld):
 	libs = ['tier0','tier1','tier2','vstdlib','bitmap','mathlib']
 
 	if bld.env.DXVK:
-		libs += ['DXVK_D3D9']
+		libs += ['DXVK_D3D9', 'SDL2']
 	else:
 		libs += ['togl']
 

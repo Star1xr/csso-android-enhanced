@@ -109,6 +109,9 @@
 #undef wcsncpy
 #pragma push_macro("wprintf")
 #undef wprintf
+// <string.h> may already have been parsed with 'strncpy' renamed by a module define; <cstring> then
+// does 'using ::strncpy', so make sure the real libc symbol is declared.
+extern "C" char *strncpy( char *, const char *, size_t );
 #include <d3d9.h>
 #pragma pop_macro("CreateThread")
 #pragma pop_macro("EnterCriticalSection")
