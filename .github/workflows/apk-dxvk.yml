@@ -3,8 +3,13 @@ name: Build APK (DXVK)
 # DXVK variant (D3D9 -> Vulkan, branch feature/dxvk-native-android): builds libdxvk_d3d9.so from
 # Star1xr/dxvk-native-android, then the engine libs with --dxvk (32 + 64 bit), and packs them into the
 # CS:SO launcher (ndke01/csso-android-launcher, Gradle). Needs Android 7.0+ (Vulkan, API 24).
-# The GLES build lives in apk.yml on csso-1.2. Manual only.
-on: workflow_dispatch
+# The GLES build lives in apk.yml on csso-1.2.
+# Runs on every push to the DXVK branch (a manual-only workflow can't be started from the Actions UI
+# until the file exists on the default branch), and can also be started by hand.
+on:
+  push:
+    branches: [ feature/dxvk-native-android ]
+  workflow_dispatch:
 
 env:
   WAF_EXTRA: --use-ccache
