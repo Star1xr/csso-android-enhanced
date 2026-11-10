@@ -3404,7 +3404,7 @@ void CShaderDeviceDx8::Present()
 		if ( IsPC() && ( m_IsResizing || ( m_ViewHWnd != (VD3DHWND)m_hWnd ) ) )
 		{
 			RECT destRect;
-			#ifndef DX_TO_GL_ABSTRACTION
+			#if !defined( DX_TO_GL_ABSTRACTION ) && !defined( DXVK_NATIVE )
 					GetClientRect( ( HWND )m_ViewHWnd, &destRect );
 			#else
 					toglGetClientRect( (VD3DHWND)m_ViewHWnd, &destRect );
@@ -3485,7 +3485,7 @@ void CShaderDeviceDx8::Present()
 
 	if ( !IsDeactivated() )
 	{
-#ifndef DX_TO_GL_ABSTRACTION
+#if !defined( DX_TO_GL_ABSTRACTION )
 		if ( ( ShaderUtil()->GetConfig().bMeasureFillRate || ShaderUtil()->GetConfig().bVisualizeFillRate ) )
 		{
 			g_pShaderAPI->ClearBuffers( true, true, true, -1, -1 );

@@ -2131,7 +2131,7 @@ void CShaderAPIDx8::ReleaseInternalRenderTargets( )
 	//       Those should be released separately via the texure manager
 	if ( m_pBackBufferSurface )
 	{
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		// dxabstract's AddRef/Release have optional args to help track usage
 		int nRetVal = m_pBackBufferSurface->Release( 0, "-B  CShaderAPIDx8::ReleaseInternalRenderTargets public release color buffer");
 #else
@@ -2143,7 +2143,7 @@ void CShaderAPIDx8::ReleaseInternalRenderTargets( )
 
 	if ( m_pZBufferSurface )
 	{
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		// dxabstract's AddRef/Release have optional args to help track usage
 		int nRetVal = m_pZBufferSurface->Release( 0, "-B  CShaderAPIDx8::ReleaseInternalRenderTargets public release zbuffer");
 #else
@@ -3714,7 +3714,7 @@ void CShaderAPIDx8::ResetRenderState( bool bFullReset )
 
 	// Viewport defaults to the window size
 	RECT windowRect;
-#if !defined( DX_TO_GL_ABSTRACTION )
+#if !defined( DX_TO_GL_ABSTRACTION ) && !defined( DXVK_NATIVE )
 	GetClientRect( (HWND)m_hWnd, &windowRect );
 #else
 	toglGetClientRect( (VD3DHWND)m_hWnd, &windowRect );
@@ -7727,7 +7727,7 @@ IDirect3DSurface* CShaderAPIDx8::GetTextureSurface( ShaderAPITextureHandle_t tex
 	{
 		pSurface = tex.GetRenderTargetSurface( false );
 
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		// dxabstract's AddRef/Release have optional args to help track usage
 		pSurface->AddRef( 0, "CShaderAPIDx8::GetTextureSurface public addref");
 #else
@@ -7847,7 +7847,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 		{
 			// This is just to make the code a little simpler...
 			// (simplifies the release logic)
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 			// dxabstract's AddRef/Release have optional args to help track usage
 			pColorSurface->AddRef( 0, "+C  CShaderAPIDx8::SetRenderTargetEx public addref 1");
 #else
@@ -7878,7 +7878,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 #endif
 		{
 			// simplify the prologue logic
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 			// dxabstract's AddRef/Release have optional args to help track usage
 			pZSurface->AddRef( 0, "+D  CShaderAPIDx8::SetRenderTargetEx public addref 1");
 #else
@@ -7906,7 +7906,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 			pZSurface = GetDepthTextureSurface( depthTextureHandle );
 			if ( pZSurface )
 			{	
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 				// dxabstract's AddRef/Release have optional args to help track usage
 				pZSurface->AddRef( 0, "+D CShaderAPIDx8::SetRenderTargetEx public addref 2");
 #else
@@ -7922,7 +7922,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 		if ( !pZSurface )
 		{
 			// Refcount of color surface was increased above
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 			// dxabstract's AddRef/Release have optional args to help track usage
 			pColorSurface->Release( 0, "-C  CShaderAPIDx8::SetRenderTargetEx public release 1" );
 #else
@@ -8008,7 +8008,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 	int ref;
 	if ( pZSurface )
 	{
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		ref = pZSurface->Release( 0, "-D  CShaderAPIDx8::SetRenderTargetEx public release (z surface)");
 #else
 		ref = pZSurface->Release();
@@ -8024,7 +8024,7 @@ void CShaderAPIDx8::SetRenderTargetEx( int nRenderTargetID, ShaderAPITextureHand
 	if( pColorSurface )
 #endif
 	{
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		ref = pColorSurface->Release( 0, "-C  CShaderAPIDx8::SetRenderTargetEx public release (color surface)");
 #else
 		ref = pColorSurface->Release();
@@ -11533,7 +11533,7 @@ void CShaderAPIDx8::SetViewports( int nCount, const ShaderViewport_t* pViewports
 		if ( IsPC() && m_IsResizing )
 		{
 			RECT viewRect;
-#if !defined( DX_TO_GL_ABSTRACTION )
+#if !defined( DX_TO_GL_ABSTRACTION ) && !defined( DXVK_NATIVE )
 			GetClientRect( ( HWND )m_ViewHWnd, &viewRect );
 #else
 			toglGetClientRect( (VD3DHWND)m_ViewHWnd, &viewRect );
@@ -12068,7 +12068,7 @@ IDirect3DSurface* CShaderAPIDx8::GetBackBufferImageHDR( Rect_t *pSrcRect, Rect_t
 				NULL );
 		}
 		pTmpSurface = m_pSmallBackBufferFP16TempSurface;
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		pTmpSurface->AddRef( 0, "CShaderAPIDx8::GetBackBufferImageHDR public addref");
 #else
 		pTmpSurface->AddRef();
@@ -12172,7 +12172,7 @@ IDirect3DSurface* CShaderAPIDx8::GetBackBufferImage( Rect_t *pSrcRect, Rect_t *p
 		// Don't bother to blit through the full-screen texture if we don't
 		// have to stretch, we're not coming from the backbuffer, and we don't have to do AA resolve
 		pTmpSurface = pRenderTarget;
-#if POSIX
+#if POSIX && !defined( DXVK_NATIVE )
 		pTmpSurface->AddRef( 0, "CShaderAPIDx8::GetBackBufferImage public addref");
 #else
 		pTmpSurface->AddRef();

@@ -316,4 +316,50 @@ D3DXINLINE HRESULT D3DXCompileShader( LPCSTR, UINT, CONST D3DXMACRO *, LPD3DXINC
 	return E_NOTIMPL;
 }
 
+// ------------------------------------------------------------ matrix stack --
+// Minimal ID3DXMatrixStack (D3DX row-vector convention). Not COM; Release() frees it.
+struct ID3DXMatrixStack
+{
+	D3DXMATRIX *m_pStack; int m_nTop; int m_nCap;
+	ID3DXMatrixStack() : m_pStack( NULL ), m_nTop( 0 ), m_nCap( 0 ) { Grow( 16 ); LoadIdentity(); }
+	~ID3DXMatrixStack() { delete[] m_pStack; }
+	void Grow( int n ) { D3DXMATRIX *p = new D3DXMATRIX[n]; for ( int i = 0; i < m_nCap; i++ ) p[i] = m_pStack[i]; delete[] m_pStack; m_pStack = p; m_nCap = n; }
+	ULONG Release() { delete this; return 0; }
+	D3DXMATRIX* GetTop() { return &m_pStack[m_nTop]; }
+	void Push() { if ( m_nTop + 1 >= m_nCap ) Grow( m_nCap * 2 ); m_pStack[m_nTop + 1] = m_pStack[m_nTop]; m_nTop++; }
+	void Pop() { if ( m_nTop > 0 ) m_nTop--; }
+	void LoadIdentity() { D3DXMatrixIdentity( GetTop() ); }
+	void LoadMatrix( const D3DXMATRIX *p ) { *GetTop() = *p; }
+	void MultMatrix( const D3DXMATRIX *p ) { D3DXMATRIX r = *GetTop() * *p; *GetTop() = r; }
+	void MultMatrixLocal( const D3DXMATRIX *p ) { D3DXMATRIX r = *p * *GetTop(); *GetTop() = r; }
+	HRESULT ScaleLocal( FLOAT x, FLOAT y, FLOAT z )
+	{
+		D3DXMATRIX s; D3DXMatrixIdentity( &s ); s.m[0][0] = x; s.m[1][1] = y; s.m[2][2] = z;
+		MultMatrixLocal( &s ); return S_OK;
+	}
+	HRESULT TranslateLocal( FLOAT x, FLOAT y, FLOAT z )
+	{
+		D3DXMATRIX t; D3DXMatrixTranslation( &t, x, y, z ); MultMatrixLocal( &t ); return S_OK;
+	}
+	HRESULT RotateAxisLocal( CONST D3DXVECTOR3 *pV, FLOAT Angle )
+	{
+		float x = pV->x, y = pV->y, z = pV->z, l = sqrtf( x*x + y*y + z*z );
+		if ( l > 0.0f ) { x /= l; y /= l; z /= l; }
+		float c = cosf( Angle ), s = sinf( Angle ), t = 1.0f - c;
+		D3DXMATRIX r; D3DXMatrixIdentity( &r );
+		r.m[0][0] = t*x*x + c;   r.m[0][1] = t*x*y + s*z; r.m[0][2] = t*x*z - s*y;
+		r.m[1][0] = t*x*y - s*z; r.m[1][1] = t*y*y + c;   r.m[1][2] = t*y*z + s*x;
+		r.m[2][0] = t*x*z + s*y; r.m[2][1] = t*y*z - s*x; r.m[2][2] = t*z*z + c;
+		MultMatrixLocal( &r ); return S_OK;
+	}
+};
+typedef ID3DXMatrixStack* LPD3DXMATRIXSTACK;
+
+D3DXINLINE HRESULT D3DXCreateMatrixStack( DWORD, LPD3DXMATRIXSTACK *ppStack )
+{
+	if ( !ppStack ) return D3DERR_INVALIDCALL;
+	*ppStack = new ID3DXMatrixStack();
+	return S_OK;
+}
+
 #endif // TOGL_DXVK_D3DX_H
