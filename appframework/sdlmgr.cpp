@@ -59,7 +59,12 @@ COpenGLEntryPoints *gGL = NULL;
 
 const int kBogusSwapInterval = INT_MAX;
 
-#if defined ANDROID || defined TOGLES
+// EGL/GLES(gl4es) entry point loading, only for the GL based render paths (not DXVK)
+#if ( defined ANDROID || defined TOGLES ) && !defined( DXVK_NATIVE )
+#define SDLMGR_EGL
+#endif
+
+#if defined( SDLMGR_EGL )
 static void *l_gl4es = NULL;
 static void *l_egl = NULL;
 static void *l_gles = NULL;
@@ -200,7 +205,7 @@ void *VoidFnPtrLookup_GlMgr(const char *fn, bool &okay, const bool bRequired, vo
 	// The SDL path would work on all these platforms, if we were using SDL there, too...
 
 
-#if defined ANDROID || defined TOGLES
+#if defined( SDLMGR_EGL )
 	// SDL does the right thing, so we never need to use tier0 in this case.
 	if( _glGetProcAddress )
 	{
@@ -601,7 +606,9 @@ InitReturnVal_t CSDLMgr::Init()
 	*(attCursor++) = (int) (value);
 
 
-#ifdef TOGLES
+#if defined( DXVK_NATIVE )
+	// Vulkan: no GL context/EGL setup
+#elif defined( TOGLES )
 	l_egl = dlopen("libEGL.so", RTLD_LAZY);
 	l_gles = dlopen("libGLESv3.so", RTLD_LAZY);
 
@@ -709,6 +716,7 @@ void CSDLMgr::Shutdown()
 {
 	SDLAPP_FUNC;
 
+#if defined( DX_TO_GL_ABSTRACTION )
 	if (gGL && m_readFBO)
 #ifdef TOGLES
 		gGL->glDeleteFramebuffers(1, &m_readFBO);
@@ -716,6 +724,7 @@ void CSDLMgr::Shutdown()
 		gGL->glDeleteFramebuffersEXT(1, &m_readFBO);
 #endif
 	m_readFBO = 0;
+#endif
 
 	if ( m_Window )
 	{
