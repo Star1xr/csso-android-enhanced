@@ -11,7 +11,7 @@ has useless full ci build and:
 
 - [ ] dxvk native (https://github.com/Star1xr/dxvk-native-android)
 
-- [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](github.com/FJH03/CSSO-NOOFFICIAL-MP)
+- [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](https://github.com/FJH03/CSSO-NOOFFICIAL-MP/)
 
 - [x] Team counter style option: Mod Options -> HUD -> choose between alive count (original) and avatars (`hud_teamcounter_style 0/1`).
 
