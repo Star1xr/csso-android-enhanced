@@ -120,37 +120,75 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	LoadControlSettings( "Resource/ModOptionsSubHUD.res" );
 
-	// Fallback for a ModOptionsSubHUD.res that doesn't know "TeamCounterStyleComboBox" yet:
-	// a control the .res didn't position is still at 0,0. Put it right under the team counter
-	// position combo box and push the controls below it down by one row.
-	// (Add "TeamCounterStyleComboBox" to the .res to control its position yourself.)
+	// If ModOptionsSubHUD.res doesn't know "TeamCounterStyleComboBox" the control is still at 0,0:
+	// PerformLayout() then places it (and its caption) below the last row on its own.
 	int csX, csY, csW, csT;
 	m_pTeamCounterStyle->GetBounds( csX, csY, csW, csT );
-	if ( csX == 0 && csY == 0 )
+	m_bAutoPlaceStyle = ( csX == 0 && csY == 0 );
+
+	m_pTeamCounterStyleLabel = NULL;
+	if ( m_bAutoPlaceStyle )
 	{
-		int px, py, pw, pt;
-		m_pPlayerCountPos->GetBounds( px, py, pw, pt );
+		m_pTeamCounterStyleLabel = new Label( this, "TeamCounterStyleLabel", "Team counter style" );
+		m_pTeamCounterStyleLabel->SetZPos( 1 );
+	}
+}
 
-		int step = pt + MAX( 2, pt / 4 );
-		int belowY = py + pt;
+//-----------------------------------------------------------------------------
+// Purpose: place the team counter style row when the .res doesn't. Idempotent: it only
+// looks at the other controls and never moves them.
+//-----------------------------------------------------------------------------
+void CModOptionsSubHUD::PerformLayout()
+{
+	BaseClass::PerformLayout();
 
-		for ( int i = 0; i < GetChildCount(); i++ )
+	if ( !m_bAutoPlaceStyle )
+		return;
+
+	int px, py, pw, pt;
+	m_pPlayerCountPos->GetBounds( px, py, pw, pt );
+
+	// Caption of the player count combo: a label on the same row, used as template
+	Label *pTemplate = NULL;
+	int bottom = 0;
+	int buttonTop = GetTall();
+	for ( int i = 0; i < GetChildCount(); i++ )
+	{
+		Panel *pChild = GetChild( i );
+		if ( !pChild || pChild == m_pTeamCounterStyle || pChild == m_pTeamCounterStyleLabel )
+			continue;
+
+		int cx, cy, cw, ct;
+		pChild->GetBounds( cx, cy, cw, ct );
+
+		if ( !Q_stricmp( pChild->GetName(), "OK" ) || !Q_stricmp( pChild->GetName(), "Cancel" ) || !Q_stricmp( pChild->GetName(), "Apply" ) )
 		{
-			Panel *pChild = GetChild( i );
-			if ( !pChild || pChild == m_pTeamCounterStyle )
-				continue;
-
-			// bottom buttons stay where they are
-			if ( !Q_stricmp( pChild->GetName(), "OK" ) || !Q_stricmp( pChild->GetName(), "Cancel" ) || !Q_stricmp( pChild->GetName(), "Apply" ) )
-				continue;
-
-			int cx, cy;
-			pChild->GetPos( cx, cy );
-			if ( cy >= belowY )
-				pChild->SetPos( cx, cy + step );
+			buttonTop = MIN( buttonTop, cy );
+			continue;
 		}
 
-		m_pTeamCounterStyle->SetBounds( px, py + step, pw, pt );
+		bottom = MAX( bottom, cy + ct );
+
+		Label *pLabel = dynamic_cast<Label *>( pChild );
+		if ( pLabel && !pTemplate && abs( cy - py ) <= pt && cx < px )
+			pTemplate = pLabel;
+	}
+
+	int gap = MAX( 2, pt / 4 );
+	int y = bottom + gap;
+	if ( y + pt > buttonTop - gap )
+		y = MAX( 0, buttonTop - gap - pt );
+
+	m_pTeamCounterStyle->SetBounds( px, y, pw, pt );
+
+	if ( m_pTeamCounterStyleLabel )
+	{
+		int lx = px, lw = 0, ly, lt;
+		if ( pTemplate )
+			pTemplate->GetBounds( lx, ly, lw, lt );
+		m_pTeamCounterStyleLabel->SetBounds( lx, y, MAX( lw, 1 ), pt );
+		if ( pTemplate )
+			m_pTeamCounterStyleLabel->SetFont( pTemplate->GetFont() );
 	}
 }
 

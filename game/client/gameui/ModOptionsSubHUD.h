@@ -34,6 +34,7 @@ public:
 	MESSAGE_FUNC( OnControlModified, "ControlModified" );
 
 protected:
+	virtual void PerformLayout();
 	// Called when page is loaded.  Data should be reloaded from document into controls.
 	virtual void OnResetData();
 	// Called when the OK / Apply button is pressed.  Changed data should be written into document.
@@ -42,6 +43,8 @@ protected:
 private:
 	CLabeledCommandComboBox*	m_pPlayerCountPos;
 	CLabeledCommandComboBox*	m_pTeamCounterStyle;
+	vgui::Label*				m_pTeamCounterStyleLabel;
+	bool						m_bAutoPlaceStyle;
 	CLabeledCommandComboBox*	m_pHealthAmmoStyle;
 	CLabeledCommandComboBox*	m_pHUDColor;
 	CCvarSlider*				m_pHUDBackgroundAlpha;
