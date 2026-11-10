@@ -11,6 +11,10 @@ on this shitty fork
 
 - [x] useless full ci build
 
+- [x] Team counter style option: Mod Options -> HUD -> choose between alive count (original) and avatars (`hud_teamcounter_style 0/1`). Alive count needs `resource/hud/teamcounter_alive.res` (the original `teamcounter.res`), avatars uses `resource/hud/teamcounter.res`
+
+- [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
@@ -62,12 +66,12 @@ This project is using waf buildsystem. If you have waf-related questions look ht
 - Spam Inspection Animation
 - Backgrounds changing Fixed (missed libs TF)
 - HeadName like CS:GO (Re-worked on vibecode) [ `cl_headname "1/0"` ]
-- New Teamcounter that's display avatars (Simple Script). Optional: choose it in Mod Options -> HUD (`hud_teamcounter_style 0` = alive count (original), `1` = avatars). The alive count style needs `resource/hud/teamcounter_alive.res` (the original `teamcounter.res`) and the avatars style uses `resource/hud/teamcounter.res`
+- New Teamcounter that's display avatars (Simple Script)
 - Radio Menu (i didn't commit yet here)
 - Vignette Script (or fade with ability to adjust & enable/disable) write in console `csgo_` and commands will appear
 - `touch_disable_on_buymenu` Cvar (Already exist. lol)
 - GameUI translated to chinese by Qwen :v
-- CS:GO Chat (From CS:SO 2.0) (always enabled, the `-nocustomchat` launch option was removed)
+- CS:GO Chat (From CS:SO 2.0)
 - New Touch UI [ `exec touch2.cfg` ] its contain radio button btw
 - Fixed Name & Clantag not changed when client press **Apply** Button
 - M4A1-S Amoo changed from 25 to 20 to match CS:GO
