@@ -610,12 +610,8 @@ void CHudChatFilterButton::DoClick( void )
 
 CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" )
 {
-	vgui::HScheme scheme;
-
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme");
-	else
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
+	// -nocustomchat was removed: always use the CS:GO style chat (ChatScheme.res / BaseChat.res)
+	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
 
 	SetScheme(scheme);
 
@@ -644,12 +640,7 @@ CBaseHudChat::CBaseHudChat( const char *pElementName )
 	vgui::Panel *pParent = g_pClientMode->GetViewport();
 	SetParent( pParent );
 
-	vgui::HScheme scheme;
-
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme" );
-	else
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme" );
+	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme" );
 
 	SetScheme(scheme);
 
@@ -720,12 +711,7 @@ CHudChatFilterPanel *CBaseHudChat::GetChatFilterPanel( void )
 
 		if ( m_pFilterPanel )
 		{
-			vgui::HScheme scheme;
-
-			if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-				scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme");
-			else
-				scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
+			vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
 
 			m_pFilterPanel->SetScheme( scheme );
 			m_pFilterPanel->InvalidateLayout( true, true );
@@ -741,10 +727,7 @@ CHudChatFilterPanel *CBaseHudChat::GetChatFilterPanel( void )
 
 void CBaseHudChat::ApplySchemeSettings( vgui::IScheme *pScheme )
 {
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		LoadControlSettings( "resource/UI/customchat.res" );
-	else
-		LoadControlSettings( "resource/UI/BaseChat.res" );
+	LoadControlSettings( "resource/UI/BaseChat.res" );
 
 	BaseClass::ApplySchemeSettings( pScheme );
 
