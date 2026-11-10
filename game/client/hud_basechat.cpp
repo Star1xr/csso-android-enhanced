@@ -608,7 +608,7 @@ void CHudChatFilterButton::DoClick( void )
 	}
 }
 
-CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" )
+CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" ), m_hChatFont( 0 )
 {
 	// -nocustomchat was removed: always use the CS:GO style chat (ChatScheme.res / BaseChat.res)
 	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
@@ -623,9 +623,10 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 	BaseClass::ApplySchemeSettings( pScheme );
 
 	if( IsAndroid() )
-		SetFont( pScheme->GetFont( "ChatFont", true ) );
+		m_hChatFont = pScheme->GetFont( "ChatFont", true );
 	else
-		SetFont( pScheme->GetFont( "ChatFont" ) );
+		m_hChatFont = pScheme->GetFont( "ChatFont" );
+	SetFont( m_hChatFont );
 
 	SetAlpha( 255 );
 
@@ -649,6 +650,15 @@ void CHudChatHistory::PaintBackground()
 
 	// the base alpha is 0..CHAT_HISTORY_ALPHA (127), scale it up so the edges get dark
 	int edge = MIN( 255, alpha * 2 );
+
+	// only cover the lines that are there (plus half a line above and below), up to the whole panel
+	int lines = GetNumLines();
+	if ( lines <= 0 )
+		return;
+	int lineHeight = vgui::surface()->GetFontTall( m_hChatFont );
+	if ( lineHeight > 0 )
+		tall = MIN( tall, lines * lineHeight + lineHeight );
+
 	int half = tall / 2;
 
 	// dark at the top and bottom edge, clear in the middle where the text is
