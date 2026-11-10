@@ -63,7 +63,9 @@ typedef wchar_t BCHAR;
 
 typedef uint MMRESULT;
 typedef uint32 *DWORD_PTR;
-typedef char *LPCSTR;
+#if !defined( DXVK_NATIVE )
+typedef char *LPCSTR;	// DXVK's windows_base.h already has the correct 'const char *'
+#endif
 typedef uint POINTL;
 
 #define IDLE_PRIORITY_CLASS	1
