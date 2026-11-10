@@ -28,6 +28,16 @@
 #undef HANDLE
 #undef HMODULE
 
+// Formats the engine uses that are not enumerators in d3d9types.h (vendor FOURCCs, all supported by DXVK)
+#define D3DFMT_R5G6R5		D3DFMT_R5G6B5
+#define D3DFMT_NV_INTZ		((D3DFORMAT)0x5a544e49)	// 'INTZ'
+#define D3DFMT_NV_RAWZ		((D3DFORMAT)0x5a574152)	// 'RAWZ'
+#define D3DFMT_NV_NULL		((D3DFORMAT)0x4c4c554e)	// 'NULL'
+#define D3DFMT_ATI_D16		((D3DFORMAT)0x36314644)	// 'DF16'
+#define D3DFMT_ATI_D24S8	((D3DFORMAT)0x34324644)	// 'DF24'
+#define D3DFMT_ATI_2N		((D3DFORMAT)0x32495441)	// 'ATI2'
+#define D3DFMT_ATI_1N		((D3DFORMAT)0x31495441)	// 'ATI1'
+
 // The window handle handed to D3D9 is an SDL_Window* created with SDL_WINDOW_VULKAN.
 typedef void *VD3DHWND;
 

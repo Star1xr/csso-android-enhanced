@@ -108,7 +108,11 @@ enum ImageFormat
 	NUM_IMAGE_FORMATS
 };
 
-#if defined( POSIX  ) || defined( DX_TO_GL_ABSTRACTION )
+#if defined( DXVK_NATIVE )
+// The real D3D9 device (DXVK) takes real D3DFORMAT values, so every library must use the same
+// definition (togl's private enum below uses different values). Vendor FOURCCs are in dxvk_native.h.
+#include "togl/rendermechanism.h"
+#elif defined( POSIX  ) || defined( DX_TO_GL_ABSTRACTION )
 typedef enum _D3DFORMAT
 	{
 		D3DFMT_INDEX16,
