@@ -11,6 +11,12 @@ on this shitty fork
 
 - [x] useless full ci build
 
+- [x] Team counter style option: Mod Options -> HUD -> choose between alive count (original) and avatars (`hud_teamcounter_style 0/1`). Alive count needs `resource/hud/teamcounter_alive.res` (the original `teamcounter.res`), avatars uses `resource/hud/teamcounter.res`
+
+- [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
+
+- [x] Better CS:GO chat
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
@@ -67,7 +73,7 @@ This project is using waf buildsystem. If you have waf-related questions look ht
 - Vignette Script (or fade with ability to adjust & enable/disable) write in console `csgo_` and commands will appear
 - `touch_disable_on_buymenu` Cvar (Already exist. lol)
 - GameUI translated to chinese by Qwen :v
-- CS:GO Chat (From CS:SO 2.0) (to disable it run game with `-nocustomchat`)
+- CS:GO Chat (From CS:SO 2.0)
 - New Touch UI [ `exec touch2.cfg` ] its contain radio button btw
 - Fixed Name & Clantag not changed when client press **Apply** Button
 - M4A1-S Amoo changed from 25 to 20 to match CS:GO

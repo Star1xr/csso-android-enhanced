@@ -15,6 +15,7 @@
 
 #include <vgui/ISystem.h>
 #include <vgui/ISurface.h>
+#include <vgui/ILocalize.h>
 
 #include "LabeledCommandComboBox.h"
 #include "cvarslider.h"
@@ -51,6 +52,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	//=========
 	m_pPlayerCountPos = new CLabeledCommandComboBox( this, "PlayerCountPositionComboBox" );
+	m_pTeamCounterStyle = new CLabeledCommandComboBox( this, "TeamCounterStyleComboBox" );
 	m_pHealthAmmoStyle = new CLabeledCommandComboBox( this, "HealthAmmoStyleComboBox" );
 	m_pHUDColor = new CLabeledCommandComboBox( this, "HUDColorComboBox" );
 	m_pHUDBackgroundAlpha = new CCvarSlider( this, "HUDBackgroundAlphaSlider", "", 0.0f, 1.0f, "cl_hud_background_alpha" );
@@ -63,6 +65,21 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Top", "hud_playercount_pos 0" );
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Bottom", "hud_playercount_pos 1" );
+
+	// The strings are normally in gameui_<language>.txt. This repo doesn't ship those, so register
+	// an English fallback when the loaded language files don't know the tokens yet.
+	if ( g_pVGuiLocalize )
+	{
+		wchar_t szAlive[]   = L"Alive count";
+		wchar_t szAvatars[] = L"Player avatars";
+		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Alive" ) )
+			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Alive", szAlive, "" );
+		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Avatars" ) )
+			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Avatars", szAvatars, "" );
+	}
+
+	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Alive", "hud_teamcounter_style 0" );
+	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Avatars", "hud_teamcounter_style 1" );
 
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_0", "cl_hud_healthammo_style 0" );
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_1", "cl_hud_healthammo_style 1" );
@@ -90,6 +107,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	}
 
 	m_pPlayerCountPos->AddActionSignalTarget( this );
+	m_pTeamCounterStyle->AddActionSignalTarget( this );
 	m_pHealthAmmoStyle->AddActionSignalTarget( this );
 	m_pHUDColor->AddActionSignalTarget( this );
 	m_pHUDBackgroundAlpha->AddActionSignalTarget( this );
@@ -101,6 +119,77 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pMenuAgent->AddActionSignalTarget( this );
 
 	LoadControlSettings( "Resource/ModOptionsSubHUD.res" );
+
+	// If ModOptionsSubHUD.res doesn't know "TeamCounterStyleComboBox" the control is still at 0,0:
+	// PerformLayout() then places it (and its caption) below the last row on its own.
+	int csX, csY, csW, csT;
+	m_pTeamCounterStyle->GetBounds( csX, csY, csW, csT );
+	m_bAutoPlaceStyle = ( csX == 0 && csY == 0 );
+
+	m_pTeamCounterStyleLabel = NULL;
+	if ( m_bAutoPlaceStyle )
+	{
+		m_pTeamCounterStyleLabel = new Label( this, "TeamCounterStyleLabel", "Team counter style" );
+		m_pTeamCounterStyleLabel->SetZPos( 1 );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: place the team counter style row when the .res doesn't. Idempotent: it only
+// looks at the other controls and never moves them.
+//-----------------------------------------------------------------------------
+void CModOptionsSubHUD::PerformLayout()
+{
+	BaseClass::PerformLayout();
+
+	if ( !m_bAutoPlaceStyle )
+		return;
+
+	int px, py, pw, pt;
+	m_pPlayerCountPos->GetBounds( px, py, pw, pt );
+
+	// Caption of the player count combo: a label on the same row, used as template
+	Label *pTemplate = NULL;
+	int bottom = 0;
+	int buttonTop = GetTall();
+	for ( int i = 0; i < GetChildCount(); i++ )
+	{
+		Panel *pChild = GetChild( i );
+		if ( !pChild || pChild == m_pTeamCounterStyle || pChild == m_pTeamCounterStyleLabel )
+			continue;
+
+		int cx, cy, cw, ct;
+		pChild->GetBounds( cx, cy, cw, ct );
+
+		if ( !Q_stricmp( pChild->GetName(), "OK" ) || !Q_stricmp( pChild->GetName(), "Cancel" ) || !Q_stricmp( pChild->GetName(), "Apply" ) )
+		{
+			buttonTop = MIN( buttonTop, cy );
+			continue;
+		}
+
+		bottom = MAX( bottom, cy + ct );
+
+		Label *pLabel = dynamic_cast<Label *>( pChild );
+		if ( pLabel && !pTemplate && abs( cy - py ) <= pt && cx < px )
+			pTemplate = pLabel;
+	}
+
+	int gap = MAX( 2, pt / 4 );
+	int y = bottom + gap;
+	if ( y + pt > buttonTop - gap )
+		y = MAX( 0, buttonTop - gap - pt );
+
+	m_pTeamCounterStyle->SetBounds( px, y, pw, pt );
+
+	if ( m_pTeamCounterStyleLabel )
+	{
+		int lx = px, lw = 0, ly, lt;
+		if ( pTemplate )
+			pTemplate->GetBounds( lx, ly, lw, lt );
+		m_pTeamCounterStyleLabel->SetBounds( lx, y, MAX( lw, 1 ), pt );
+		if ( pTemplate )
+			m_pTeamCounterStyleLabel->SetFont( pTemplate->GetFont() );
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -127,6 +216,10 @@ void CModOptionsSubHUD::OnResetData()
 	ConVarRef hud_playercount_pos( "hud_playercount_pos" );
 	if ( hud_playercount_pos.IsValid() )
 		m_pPlayerCountPos->SetInitialItem( hud_playercount_pos.GetInt() );
+
+	ConVarRef hud_teamcounter_style( "hud_teamcounter_style" );
+	if ( hud_teamcounter_style.IsValid() )
+		m_pTeamCounterStyle->SetInitialItem( hud_teamcounter_style.GetInt() );
 
 	ConVarRef cl_hud_healthammo_style( "cl_hud_healthammo_style" );
 	if ( cl_hud_healthammo_style.IsValid() )
@@ -160,6 +253,7 @@ void CModOptionsSubHUD::OnResetData()
 void CModOptionsSubHUD::OnApplyChanges()
 {
 	m_pPlayerCountPos->ApplyChanges();
+	m_pTeamCounterStyle->ApplyChanges();
 	m_pHealthAmmoStyle->ApplyChanges();
 	m_pHUDColor->ApplyChanges();
 	m_pHUDBackgroundAlpha->ApplyChanges();

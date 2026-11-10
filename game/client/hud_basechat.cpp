@@ -608,14 +608,10 @@ void CHudChatFilterButton::DoClick( void )
 	}
 }
 
-CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" )
+CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" ), m_hChatFont( 0 )
 {
-	vgui::HScheme scheme;
-
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme");
-	else
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
+	// -nocustomchat was removed: always use the CS:GO style chat (ChatScheme.res / BaseChat.res)
+	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
 
 	SetScheme(scheme);
 
@@ -627,11 +623,48 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 	BaseClass::ApplySchemeSettings( pScheme );
 
 	if( IsAndroid() )
-		SetFont( pScheme->GetFont( "ChatFont", true ) );
+		m_hChatFont = pScheme->GetFont( "ChatFont", true );
 	else
-		SetFont( pScheme->GetFont( "ChatFont" ) );
+		m_hChatFont = pScheme->GetFont( "ChatFont" );
+	SetFont( m_hChatFont );
 
 	SetAlpha( 255 );
+
+	// the CS:GO style background is drawn in PaintBackground()
+	SetPaintBackgroundEnabled( true );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: CS:GO style chat background, a black gradient that is strongest at the
+//			top and bottom edge and fades out towards the middle. Its strength follows the background
+//			alpha, which CBaseHudChat::FadeChatHistory() fades with the chat.
+//-----------------------------------------------------------------------------
+void CHudChatHistory::PaintBackground()
+{
+	int alpha = GetBgColor().a();
+	if ( alpha <= 0 )
+		return;
+
+	int wide, tall;
+	GetSize( wide, tall );
+
+	// the base alpha is 0..CHAT_HISTORY_ALPHA (127), scale it up so the edges get dark
+	int edge = MIN( 255, alpha * 2 );
+
+	// only cover the lines that are there (plus half a line above and below), up to the whole panel
+	int lines = GetNumLines();
+	if ( lines <= 0 )
+		return;
+	int lineHeight = vgui::surface()->GetFontTall( m_hChatFont );
+	if ( lineHeight > 0 )
+		tall = MIN( tall, lines * lineHeight + lineHeight );
+
+	int half = tall / 2;
+
+	// dark at the top and bottom edge, clear in the middle where the text is
+	vgui::surface()->DrawSetColor( 0, 0, 0, 255 );
+	vgui::surface()->DrawFilledRectFade( 0, 0, wide, half, edge, 0, false );
+	vgui::surface()->DrawFilledRectFade( 0, half, wide, tall, 0, edge, false );
 }
 
 int CBaseHudChat::m_nLineCounter = 1;
@@ -644,12 +677,7 @@ CBaseHudChat::CBaseHudChat( const char *pElementName )
 	vgui::Panel *pParent = g_pClientMode->GetViewport();
 	SetParent( pParent );
 
-	vgui::HScheme scheme;
-
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme" );
-	else
-		scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme" );
+	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme" );
 
 	SetScheme(scheme);
 
@@ -720,12 +748,7 @@ CHudChatFilterPanel *CBaseHudChat::GetChatFilterPanel( void )
 
 		if ( m_pFilterPanel )
 		{
-			vgui::HScheme scheme;
-
-			if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-				scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/customchatscheme.res", "ChatScheme");
-			else
-				scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
+			vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
 
 			m_pFilterPanel->SetScheme( scheme );
 			m_pFilterPanel->InvalidateLayout( true, true );
@@ -741,10 +764,7 @@ CHudChatFilterPanel *CBaseHudChat::GetChatFilterPanel( void )
 
 void CBaseHudChat::ApplySchemeSettings( vgui::IScheme *pScheme )
 {
-	if( IsAndroid() && !CommandLine()->FindParm( "-nocustomchat" ) )
-		LoadControlSettings( "resource/UI/customchat.res" );
-	else
-		LoadControlSettings( "resource/UI/BaseChat.res" );
+	LoadControlSettings( "resource/UI/BaseChat.res" );
 
 	BaseClass::ApplySchemeSettings( pScheme );
 
