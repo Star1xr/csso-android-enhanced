@@ -628,6 +628,30 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 		SetFont( pScheme->GetFont( "ChatFont" ) );
 
 	SetAlpha( 255 );
+
+	// the CS:GO style background is drawn in PaintBackground()
+	SetPaintBackgroundEnabled( true );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: CS:GO style chat background, a black gradient that is strongest on the
+//			left and fades out to the right. Its strength follows the background
+//			alpha, which CBaseHudChat::FadeChatHistory() fades with the chat.
+//-----------------------------------------------------------------------------
+void CHudChatHistory::PaintBackground()
+{
+	int alpha = GetBgColor().a();
+	if ( alpha <= 0 )
+		return;
+
+	int wide, tall;
+	GetSize( wide, tall );
+
+	// the base alpha is 0..CHAT_HISTORY_ALPHA (127), scale it up so the left edge gets dark
+	int left = MIN( 255, alpha * 2 );
+
+	vgui::surface()->DrawSetColor( 0, 0, 0, 255 );
+	vgui::surface()->DrawFilledRectFade( 0, 0, wide, tall, left, 0, true );
 }
 
 int CBaseHudChat::m_nLineCounter = 1;

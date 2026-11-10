@@ -186,6 +186,7 @@ public:
 	CHudChatHistory( vgui::Panel *pParent, const char *panelName );
 
 	virtual void	ApplySchemeSettings(vgui::IScheme *pScheme);
+	virtual void	PaintBackground();
 };
 
 class CHudChatFilterButton : public vgui::Button
