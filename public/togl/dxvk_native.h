@@ -157,6 +157,8 @@
 #undef HMODULE
 #undef LONG
 
+typedef DWORD *LPDWORD;
+
 // Formats the engine uses that are not enumerators in d3d9types.h (vendor FOURCCs, all supported by DXVK)
 #define D3DFMT_R5G6R5		D3DFMT_R5G6B5
 #define D3DFMT_NV_INTZ		((D3DFORMAT)0x5a544e49)	// 'INTZ'

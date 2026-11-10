@@ -16,9 +16,13 @@ def configure(conf):
 		'SHADERAPIDX9',
 		'SHADER_DLL_EXPORT',
 		#'PROTECTED_THINGS_ENABLE', # conflicts with stlport
-		'strncpy=use_Q_strncpy_instead',
-		'_snprintf=use_Q_snprintf_instead',
 	])
+	# These renames break libc/libstdc++ headers (<cstring> does 'using ::strncpy') that DXVK's headers pull in
+	if not conf.env.DXVK:
+		conf.env.append_unique('DEFINES',[
+			'strncpy=use_Q_strncpy_instead',
+			'_snprintf=use_Q_snprintf_instead',
+		])
 	
 	if conf.env.DEST_OS == 'win32' and not conf.env.GL:
 		conf.env.append_unique('DEFINES',[
