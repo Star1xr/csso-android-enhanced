@@ -196,6 +196,7 @@ bool CShaderDeviceMgrDx8::Connect( CreateInterfaceFn factory )
 	#endif
 #endif
 
+	Msg( "ShaderDeviceMgr: Direct3DCreate9 returned %p\n", (void *)m_pD3D );
 	if ( !m_pD3D )
 	{
 		Warning( "Failed to create D3D9!\n" );
@@ -2222,8 +2223,12 @@ IDirect3DDevice9* CShaderDeviceDx8::InvokeCreateDevice( void* hWnd, int nAdapter
 	devType =  CommandLine()->FindParm( "-nulldevice" ) ? D3DDEVTYPE_NULLREF: devType;
 #endif
 
+	Msg( "ShaderDevice: CreateDevice adapter=%d devType=%d flags=0x%x\n",
+		nAdapter, (int)devType, (unsigned)deviceCreationFlags );
 	HRESULT hr = D3D()->CreateDevice( nAdapter, devType,
 		(VD3DHWND)hWnd, deviceCreationFlags, &m_PresentParameters, &pD3DDevice );
+	Msg( "ShaderDevice: CreateDevice returned hr=0x%08x device=%p\n",
+		(unsigned)hr, (void *)pD3DDevice );
 
 	if ( !FAILED( hr ) && pD3DDevice )
 		return pD3DDevice;
@@ -2319,9 +2324,13 @@ bool CShaderDeviceDx8::CreateD3DDevice( void* pHWnd, int nAdapter, const ShaderD
 
 	// Creates the device
 	IDirect3DDevice9 *pD3DDevice = InvokeCreateDevice( pHWnd, nAdapter, deviceCreationFlags );
+	Msg( "ShaderDevice: InvokeCreateDevice returned %p\n", (void *)pD3DDevice );
 
 	if ( !pD3DDevice )
+	{
+		Msg( "ShaderDevice: device creation failed\n" );
 		return false;
+	}
 
 	// Check to see if query is supported
 	DetectQuerySupport( pD3DDevice );

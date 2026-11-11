@@ -63,6 +63,7 @@ public:
 	void Init(const char *logfile);
 	void Write(const char *data);
 	void Disable();
+	bool IsInitialized() const;
 
 private:
 	FILE *file;
@@ -93,6 +94,11 @@ void CDbgLogger::Disable()
 	}
 }
 
+bool CDbgLogger::IsInitialized() const
+{
+	return file != NULL;
+}
+
 void CDbgLogger::Init(const char *logfile)
 {
 	time_t timeCur;
@@ -106,7 +112,20 @@ void CDbgLogger::Init(const char *logfile)
 	Plat_gmtime( &timeCur, &tmStruct );
 	Plat_ctime( &timeCur, szTime, sizeof(szTime) );
 
+	if( file )
+	{
+		fclose( file );
+		file = NULL;
+	}
+
 	file = fopen(logfile, "w+");
+	if( !file )
+	{
+#ifdef ANDROID
+		__android_log_print( ANDROID_LOG_ERROR, "SRCENG", "CDbgLogger: failed to open '%s'", logfile );
+#endif
+		fprintf( stderr, "CDbgLogger: failed to open '%s'\n", logfile );
+	}
 	if( file )
 	{
 #ifdef GIT_COMMIT_HASH

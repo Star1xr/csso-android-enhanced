@@ -54,6 +54,7 @@ public:
 	virtual void Init(const char *logfile) = 0;
 	virtual void Write(const char *data) = 0;
 	virtual void Disable() = 0;
+	virtual bool IsInitialized() const = 0;
 };
 
 PLATFORM_INTERFACE IDbgLogger *DebugLogger();

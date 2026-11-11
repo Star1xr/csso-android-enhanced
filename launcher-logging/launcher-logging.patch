@@ -1,0 +1,456 @@
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -21,6 +21,7 @@
+ 	<uses-feature android:glEsVersion="0x00030002" />
+ 
+ 	<application
++		android:name="me.nillerusr.CssoApplication"
+ 		android:allowAudioPlaybackCapture="true"
+ 		android:icon="@drawable/csso_icon"
+ 		android:label="@string/mod_name"
+--- a/app/src/main/java/me/nillerusr/LauncherActivity.java
++++ b/app/src/main/java/me/nillerusr/LauncherActivity.java
+@@ -82,8 +82,13 @@
+ 
+ 	public void onCreate( Bundle savedInstanceState )
+ 	{
++		FileLog.init( this );
++		FileLog.installUncaughtHandler();
++		FileLog.i( TAG, "LauncherActivity.onCreate" );
++
+ 		super.onCreate( savedInstanceState );
+ 		PKG_NAME = getApplication().getPackageName();
++		FileLog.i( TAG, "package=" + PKG_NAME );
+ 		requestWindowFeature( Window.FEATURE_NO_TITLE );
+ 
+ 		super.setTheme( 0x01030224 );
+@@ -138,6 +143,10 @@
+ 		cmdArgs.setText( mPref.getString( "argv", getString( R.string.default_commandline_arguments ) ) );
+ 		GamePath.setText( mPref.getString( "gamepath", getDefaultDir() + "/srceng" ) );
+ 
++		FileLog.i( TAG, "gamepath=" + GamePath.getText() );
++		FileLog.i( TAG, "argv=" + cmdArgs.getText() );
++		FileLog.i( TAG, "logFile=" + FileLog.getPath() );
++
+ 		// permissions check
+ 		applyPermissions( new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO }, REQUEST_PERMISSIONS );
+ 
+@@ -203,6 +212,7 @@
+ 
+ 	public void startSource( View view )
+ 	{
++		FileLog.i( TAG, "startSource: launch button clicked" );
+ 		String argv = SharedUtil.prepareArgv( cmdArgs.getText().toString() );
+ 		SharedPreferences.Editor editor = mPref.edit();
+ 		editor.putString( "argv", argv );
+@@ -223,11 +233,14 @@
+ 		Intent intent = new Intent( LauncherActivity.this, SDLActivity.class );
+ 		intent.addFlags( Intent.FLAG_ACTIVITY_NEW_TASK );
+ 		intent = prepareIntent( intent );
++		FileLog.i( TAG, "startSource: starting SDLActivity, argv=" + argv + ", gamepath=" + GamePath.getText() );
+ 		startActivity( intent );
++		FileLog.i( TAG, "startSource: startActivity returned" );
+ 	}
+ 
+ 	public void onPause()
+ 	{
++		FileLog.i( TAG, "LauncherActivity.onPause" );
+ 		saveSettings( mPref.edit() );
+ 		super.onPause();
+ 	}
+--- a/app/src/main/java/me/nillerusr/ExtractAssets.java
++++ b/app/src/main/java/me/nillerusr/ExtractAssets.java
+@@ -51,6 +51,7 @@
+ 	public static void extractAsset( Context context, String asset, Boolean force )
+ 	{
+ 		AssetManager am = context.getAssets();
++		FileLog.i( TAG, "extractAsset: " + asset + " force=" + force );
+ 
+ 		try
+ 		{
+@@ -59,6 +60,7 @@
+ 			boolean asset_exists = asset_file.exists();
+ 			if( !force && asset_exists )
+ 			{
++				FileLog.i( TAG, "extractAsset: already exists: " + asset_file.getAbsolutePath() );
+ 				// chmod is needed here because newer android may reset file permissions
+ 				chmod( context.getFilesDir().getPath() + "/" + asset, 0777 );
+ 				return;
+@@ -85,9 +87,11 @@
+ 				asset_file.delete();
+ 
+ 			tmp.renameTo( new File( context.getFilesDir().getPath() + "/" + asset ) );
++			FileLog.i( TAG, "extractAsset: extracted " + asset );
+ 		}
+ 		catch( Exception e )
+ 		{
++			FileLog.e( TAG, "Failed to extract asset: " + asset, e );
+ 			Log.e( TAG, "Failed to extract vpk: " + e.toString() );
+ 		}
+ 
+@@ -119,6 +123,7 @@
+ 		final String VPK_CHSM = context.getString( R.string.vpk_checksum );
+ 
+ 		Boolean force = !VPK_CHSM.equals( mPref.getString( "vpk_checksum", "" ) );
++		FileLog.i( TAG, "extractVPK: " + VPK_NAME + " checksum=" + VPK_CHSM + " force=" + force );
+ 		extractAsset( context, VPK_NAME, force );
+ 
+ 		SharedPreferences.Editor editor = mPref.edit();
+--- a/app/src/main/java/com/valvesoftware/ValveActivity2.java
++++ b/app/src/main/java/com/valvesoftware/ValveActivity2.java
+@@ -11,6 +11,7 @@
+ import android.util.Log;
+ 
+ import me.nillerusr.ExtractAssets;
++import me.nillerusr.FileLog;
+ import me.nillerusr.LauncherActivity;
+ import me.dmk95.csso.R;
+ 
+@@ -28,16 +29,33 @@
+ 	{
+ 		File dir = new File( path );
+ 		if( !dir.isDirectory() )
++		{
++			FileLog.w( "ValveActivity2", "findGameinfo: not a directory: " + path );
++			return false;
++		}
++
++		File[] children = dir.listFiles();
++		if( children == null )
++		{
++			FileLog.w( "ValveActivity2", "findGameinfo: listFiles() returned null: " + path );
+ 			return false;
++		}
+ 
+-		for( File file : dir.listFiles() )
++		for( File file : children )
+ 		{
+ 			if( file.isDirectory() )
+ 			{
+-				for( File f : file.listFiles() )
++				File[] modChildren = file.listFiles();
++				if( modChildren == null )
++					continue;
++
++				for( File f : modChildren )
+ 				{
+ 					if( f.getName().toLowerCase().equals( "gameinfo.txt" ) )
++					{
++						FileLog.i( "ValveActivity2", "findGameinfo: found " + f.getAbsolutePath() );
+ 						return true;
++					}
+ 				}
+ 			}
+ 		}
+@@ -49,12 +67,25 @@
+ 	{
+ 		File dir = new File( path );
+ 		if( !dir.isDirectory() )
++		{
++			FileLog.w( "ValveActivity2", "isModGameinfoExists: not a directory: " + path );
+ 			return false;
++		}
+ 
+-		for( File file : dir.listFiles() )
++		File[] children = dir.listFiles();
++		if( children == null )
++		{
++			FileLog.w( "ValveActivity2", "isModGameinfoExists: listFiles() returned null: " + path );
++			return false;
++		}
++
++		for( File file : children )
+ 		{
+ 			if( file.isFile() && file.getName().toLowerCase().equals( "gameinfo.txt" ) )
++			{
++				FileLog.i( "ValveActivity2", "isModGameinfoExists: found " + file.getAbsolutePath() );
+ 				return true;
++			}
+ 		}
+ 
+ 		return false;
+@@ -68,8 +99,17 @@
+ 		if( gamedir == null || gamedir.isEmpty() )
+ 			gamedir = LauncherActivity.MOD_NAME;
+ 
+-		if( !findGameinfo( gamepath ) || !isModGameinfoExists( gamepath + "/" + gamedir ) )
++		FileLog.i( "ValveActivity2", "preInit: gamepath=" + gamepath + " gamedir=" + gamedir );
++
++		boolean gameinfo = findGameinfo( gamepath );
++		boolean modinfo = isModGameinfoExists( gamepath + "/" + gamedir );
++		FileLog.i( "ValveActivity2", "preInit: gameinfo=" + gameinfo + " modinfo=" + modinfo );
++
++		if( !gameinfo || !modinfo )
++		{
++			FileLog.e( "ValveActivity2", "preInit: gameinfo check failed", null );
+ 			return false;
++		}
+ 
+ 		return true;
+ 	}
+@@ -83,6 +123,8 @@
+ 		String argv = intent.getStringExtra( "argv" );
+ 		String gamedir = intent.getStringExtra( "gamedir" );
+ 		String customVPK = intent.getStringExtra( "vpk" );
++		FileLog.i( "ValveActivity2", "initNatives: gamepath=" + gamepath
++			+ " gamedir=" + gamedir + " customVPK=" + customVPK );
+ 		Log.v( "SRCAPK", "argv=" + argv );
+ 
+ 		if( gamedir == null || gamedir.isEmpty() )
+@@ -93,21 +135,32 @@
+ 
+ 		argv = "-game " + gamedir + " " + argv;
+ 
++		FileLog.i( "ValveActivity2", "initNatives: extracting assets" );
+ 		ExtractAssets.extractAssets( context );
+ 
+ 		String vpks = context.getFilesDir().getPath() + "/" + context.getString( R.string.vpk_name );
+ 		if( customVPK != null && !customVPK.isEmpty() )
+ 			vpks = customVPK + "," + vpks;
+ 
+-		Log.v( "SRCAPK", "vpks=" + vpks );
++		String logDir = FileLog.getDir();
++		if( logDir == null || logDir.isEmpty() )
++			logDir = new File( gamepath, "csso_logs" ).getAbsolutePath();
++
++		FileLog.i( "ValveActivity2", "initNatives: argv=" + argv );
++		FileLog.i( "ValveActivity2", "initNatives: vpks=" + vpks );
++		FileLog.i( "ValveActivity2", "initNatives: logDir=" + logDir );
+ 
+ 		setenv( "EXTRAS_VPK_PATH", vpks, 1 );
+ 		setenv( "LANG", Locale.getDefault().toString(), 1 );
+ 		setenv( "APP_DATA_PATH", appinf.dataDir, 1 );
+ 		setenv( "APP_LIB_PATH", appinf.nativeLibraryDir, 1 );
+ 		setenv( "VALVE_GAME_PATH", gamepath, 1 );
++		setenv( "APP_LOG_PATH", logDir, 1 );
++		setenv( "DXVK_LOG_PATH", logDir, 1 );
++		setenv( "DXVK_LOG_LEVEL", "debug", 1 );
+ 
+ 		Log.v( "SRCAPK", "argv=" + argv );
+ 		setArgs( argv );
++		FileLog.i( "ValveActivity2", "initNatives: done" );
+ 	}
+ }
+--- a/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -56,6 +56,7 @@
+ import android.Manifest;
+ 
+ import me.nillerusr.DirchActivity;
++import me.nillerusr.FileLog;
+ 
+ import com.valvesoftware.ValveActivity2;
+ 
+@@ -196,7 +197,21 @@
+ 	{
+ 		for( String lib : getLibraries() )
+ 		{
+-			SDL.loadLibrary( lib );
++			FileLog.i( TAG, "loadLibraries: loading " + lib );
++			try
++			{
++				SDL.loadLibrary( lib );
++				FileLog.i( TAG, "loadLibraries: loaded " + lib );
++			}
++			catch( Throwable t )
++			{
++				FileLog.e( TAG, "loadLibraries: failed " + lib, t );
++				if( t instanceof Error )
++					throw (Error)t;
++				if( t instanceof RuntimeException )
++					throw (RuntimeException)t;
++				throw new RuntimeException( t );
++			}
+ 		}
+ 	}
+ 
+@@ -251,12 +266,15 @@
+ 
+ 	public void onRequestPermissionsResult( int requestCode, String[] permissions, int[] grantResults )
+ 	{
++		FileLog.i( TAG, "onRequestPermissionsResult: requestCode=" + requestCode
++			+ " results=" + java.util.Arrays.toString( grantResults ) );
+ 		if( requestCode == REQUEST_PERMISSIONS )
+ 		{
+ 			for( int grantResult : grantResults )
+ 			{
+ 				if( grantResult == PackageManager.PERMISSION_DENIED )
+ 				{
++					FileLog.e( TAG, "onRequestPermissionsResult: permission denied", null );
+ 					Toast.makeText( this, R.string.srceng_launcher_error_no_permission, Toast.LENGTH_LONG ).show();
+ 					finish();
+ 					return;
+@@ -269,9 +287,13 @@
+ 	public void init()
+ 	{
+ 		if( mIsInitCalled )
++		{
++			FileLog.i( TAG, "init: already called" );
+ 			return;
++		}
+ 
+ 		mIsInitCalled = true;
++		FileLog.i( TAG, "init: enter" );
+ 
+ 		try
+ 		{
+@@ -294,16 +316,19 @@
+ 			System.err.println( e.getMessage() );
+ 			mBrokenLibraries = true;
+ 			errorMsgBrokenLib = e.getMessage();
++			FileLog.e( TAG, "init: UnsatisfiedLinkError", e );
+ 		}
+ 		catch( Exception e )
+ 		{
+ 			System.err.println( e.getMessage() );
+ 			mBrokenLibraries = true;
+ 			errorMsgBrokenLib = e.getMessage();
++			FileLog.e( TAG, "init: library load failed", e );
+ 		}
+ 
+ 		if( mBrokenLibraries )
+ 		{
++			FileLog.e( TAG, "init: broken libraries: " + errorMsgBrokenLib, null );
+ 			mSingleton = this;
+ 			AlertDialog.Builder dlgAlert = new AlertDialog.Builder( this );
+ 			dlgAlert.setMessage( "An error occurred while trying to start the application. Please try again and/or reinstall." + System.getProperty( "line.separator" ) + System.getProperty( "line.separator" ) + "Error: " + errorMsgBrokenLib );
+@@ -323,8 +348,10 @@
+ 			return;
+ 		}
+ 
++		FileLog.i( TAG, "init: calling ValveActivity2.preInit" );
+ 		if( !ValveActivity2.preInit( this, getIntent() ) )
+ 		{
++			FileLog.e( TAG, "init: ValveActivity2.preInit returned false", null );
+ 			mBrokenLibraries = true; // Funny hack, but should work
+ 			mSingleton = this;
+ 			AlertDialog.Builder dlgAlert = new AlertDialog.Builder( this );
+@@ -355,7 +382,9 @@
+ 		SDL.setContext( this );
+ 
+ 		Intent intent = getIntent();
++		FileLog.i( TAG, "init: calling ValveActivity2.initNatives" );
+ 		ValveActivity2.initNatives( this, getIntent() );
++		FileLog.i( TAG, "init: ValveActivity2.initNatives returned" );
+ 
+ 		mClipboardHandler = new SDLClipboardHandler();
+ 
+@@ -370,10 +399,12 @@
+ 			getWindow().getAttributes().layoutInDisplayCutoutMode = 1;
+ 
+ 		// Set up the surface
++		FileLog.i( TAG, "init: creating SDLSurface" );
+ 		mSurface = new SDLSurface( getApplication() );
+ 
+ 		mLayout = new RelativeLayout( this );
+ 		mLayout.addView( mSurface );
++		FileLog.i( TAG, "init: surface view created" );
+ 
+ 		// Get our current screen orientation and pass it down.
+ 		mCurrentOrientation = SDLActivity.getCurrentOrientation();
+@@ -417,6 +448,9 @@
+ 	@Override
+ 	protected void onCreate( Bundle savedInstanceState )
+ 	{
++		FileLog.init( this );
++		FileLog.installUncaughtHandler();
++		FileLog.i( TAG, "SDLActivity.onCreate" );
+ 		Log.v( TAG, "Device: " + Build.DEVICE );
+ 		Log.v( TAG, "Model: " + Build.MODEL );
+ 		Log.v( TAG, "onCreate()" );
+@@ -461,6 +495,7 @@
+ 	@Override
+ 	protected void onPause()
+ 	{
++		FileLog.i( TAG, "SDLActivity.onPause" );
+ 		Log.v( TAG, "onPause()" );
+ 		super.onPause();
+ 
+@@ -473,6 +508,7 @@
+ 	@Override
+ 	protected void onResume()
+ 	{
++		FileLog.i( TAG, "SDLActivity.onResume" );
+ 		Log.v( TAG, "onResume()" );
+ 		super.onResume();
+ 
+@@ -485,6 +521,7 @@
+ 	@Override
+ 	protected void onStop()
+ 	{
++		FileLog.i( TAG, "SDLActivity.onStop" );
+ 		Log.v( TAG, "onStop()" );
+ 		super.onStop();
+ 		if( mHasMultiWindow )
+@@ -496,6 +533,7 @@
+ 	@Override
+ 	protected void onStart()
+ 	{
++		FileLog.i( TAG, "SDLActivity.onStart" );
+ 		Log.v( TAG, "onStart()" );
+ 		super.onStart();
+ 		if( mHasMultiWindow )
+@@ -537,6 +575,7 @@
+ 	public void onWindowFocusChanged( boolean hasFocus )
+ 	{
+ 		super.onWindowFocusChanged( hasFocus );
++		FileLog.i( TAG, "SDLActivity.onWindowFocusChanged: " + hasFocus );
+ 		Log.v( TAG, "onWindowFocusChanged(): " + hasFocus );
+ 
+ 		if( SDLActivity.mBrokenLibraries )
+@@ -600,6 +639,7 @@
+ 	@Override
+ 	protected void onDestroy()
+ 	{
++		FileLog.i( TAG, "SDLActivity.onDestroy" );
+ 		Log.v( TAG, "onDestroy()" );
+ 
+ 		if( SDLActivity.mBrokenLibraries )
+@@ -2002,9 +2042,22 @@
+ 			Log.v( "SDL", "modify thread properties failed " + e.toString() );
+ 		}
+ 
++		FileLog.i( "SDL", "Running main function " + function + " from library " + library );
+ 		Log.v( "SDL", "Running main function " + function + " from library " + library );
+ 
+-		SDLActivity.nativeRunMain( library, function, arguments );
++		try
++		{
++			SDLActivity.nativeRunMain( library, function, arguments );
++			FileLog.i( "SDL", "nativeRunMain returned" );
++		}
++		catch( Throwable t )
++		{
++			FileLog.e( "SDL", "nativeRunMain failed", t );
++		}
++		finally
++		{
++			FileLog.i( "SDL", "Finished main function" );
++		}
+ 
+ 		Log.v( "SDL", "Finished main function" );
+ 
+@@ -2084,6 +2137,7 @@
+ 	@Override
+ 	public void surfaceCreated( SurfaceHolder holder )
+ 	{
++		FileLog.i( "SDL", "surfaceCreated()" );
+ 		Log.v( "SDL", "surfaceCreated()" );
+ 		SDLActivity.onNativeSurfaceCreated();
+ 	}
+@@ -2092,6 +2146,7 @@
+ 	@Override
+ 	public void surfaceDestroyed( SurfaceHolder holder )
+ 	{
++		FileLog.i( "SDL", "surfaceDestroyed()" );
+ 		Log.v( "SDL", "surfaceDestroyed()" );
+ 
+ 		// Transition to pause, if needed
+@@ -2106,6 +2161,7 @@
+ 	@Override
+ 	public void surfaceChanged( SurfaceHolder holder, int format, int width, int height )
+ 	{
++		FileLog.i( "SDL", "surfaceChanged(): " + width + "x" + height );
+ 		Log.v( "SDL", "surfaceChanged()" );
+ 
+ 		if( SDLActivity.mSingleton == null )

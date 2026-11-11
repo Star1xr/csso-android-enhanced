@@ -16,6 +16,8 @@
 	#include <sys/stat.h>
 	#include <fcntl.h>
 	#include <locale.h>
+	#include <errno.h>
+	#include <string.h>
 #elif defined ( _X360 )
 #else
 #error
@@ -757,7 +759,9 @@ bool CSourceAppSystemGroup::Create()
 		pDLLName = "shaderapiempty" DLL_EXT_STRING;
 	}
 
+	Msg( "LoadAppSystems: SetShaderAPI('%s')\n", pDLLName );
 	pMaterialSystem->SetShaderAPI( pDLLName );
+	Msg( "LoadAppSystems: SetShaderAPI returned\n" );
 
 	double elapsed = Plat_FloatTime() - st;
 	COM_TimestampedLog( "LoadAppSystems:  Took %.4f secs to load libraries and get factories.", (float)elapsed );
@@ -768,9 +772,19 @@ bool CSourceAppSystemGroup::Create()
 bool CSourceAppSystemGroup::PreInit()
 {
 	if ( !CommandLine()->FindParm( "-nolog" ) )
-		DebugLogger()->Init("engine.log");
+	{
+		// On Android the launcher opens engine.log before the engine starts so
+		// that early Msg() output survives a startup crash. Do not truncate and
+		// replace that file here.
+		if ( !DebugLogger()->IsInitialized() )
+			DebugLogger()->Init("engine.log");
+		else
+			Msg( "PreInit: keeping the already-open engine log\n" );
+	}
 	else
+	{
 		DebugLogger()->Disable();
+	}
 
 	CreateInterfaceFn factory = GetFactory();
 	ConnectTier1Libraries( &factory, 1 );
@@ -779,7 +793,11 @@ bool CSourceAppSystemGroup::PreInit()
 	ConnectTier3Libraries( &factory, 1 );
 
 	if ( !g_pFullFileSystem || !g_pMaterialSystem )
+	{
+		Msg( "PreInit: missing system (filesystem=%p, materialsystem=%p)\n",
+			(void *)g_pFullFileSystem, (void *)g_pMaterialSystem );
 		return false;
+	}
 
 	CFSSteamSetupInfo steamInfo;
 	steamInfo.m_bToolsMode = false;
@@ -795,15 +813,23 @@ bool CSourceAppSystemGroup::PreInit()
 			Error( "FileSystem_LoadFileSystemModule: no -defaultgamedir or -game specified." );
 		}
 	}
+	Msg( "PreInit: game directory = '%s'\n", steamInfo.m_pDirectoryName ? steamInfo.m_pDirectoryName : "(null)" );
 	if ( FileSystem_SetupSteamEnvironment( steamInfo ) != FS_OK )
+	{
+		Msg( "PreInit: FileSystem_SetupSteamEnvironment failed\n" );
 		return false;
+	}
 
 	CFSMountContentInfo fsInfo;
 	fsInfo.m_pFileSystem = g_pFullFileSystem;
 	fsInfo.m_bToolsMode = m_bEditMode;
 	fsInfo.m_pDirectoryName = steamInfo.m_GameInfoPath;
+	Msg( "PreInit: mounting content from '%s'\n", fsInfo.m_pDirectoryName ? fsInfo.m_pDirectoryName : "(null)" );
 	if ( FileSystem_MountContent( fsInfo ) != FS_OK )
+	{
+		Msg( "PreInit: FileSystem_MountContent failed\n" );
 		return false;
+	}
 
 	if ( IsPC() || !IsX360() )
 	{
@@ -1205,6 +1231,14 @@ DLL_EXPORT int LauncherMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR
 DLL_EXPORT int LauncherMain( int argc, char **argv )
 #endif
 {
+#ifdef WIN32
+	Msg( "LauncherMain: entry (win32)\n" );
+#else
+	Msg( "LauncherMain: entry argc=%d\n", argc );
+	for( int i = 0; i < argc; i++ )
+		Msg( "LauncherMain: argv[%d] = '%s'\n", i, argv[i] ? argv[i] : "(null)" );
+#endif
+
 #if (defined(LINUX) || defined(PLATFORM_BSD)) && !defined ANDROID
 	// Temporary fix to stop us from crashing in printf/sscanf functions that don't expect
 	//  localization to mess with your "." and "," float seperators. Mac OSX also sets LANG
@@ -1479,7 +1513,21 @@ DLL_EXPORT int LauncherMain( int argc, char **argv )
 	// Figure out the directory the executable is running from
 	// and make that be the current working directory
 
+#ifdef POSIX
+	char startupCwd[2048] = { 0 };
+	if ( getcwd( startupCwd, sizeof(startupCwd) ) )
+		Msg( "LauncherMain: cwd before chdir = '%s'\n", startupCwd );
+	Msg( "LauncherMain: base directory = '%s'\n", GetBaseDirectory() ? GetBaseDirectory() : "(null)" );
+	if ( _chdir( GetBaseDirectory() ) != 0 )
+		Msg( "LauncherMain: _chdir('%s') failed: %s\n", GetBaseDirectory() ? GetBaseDirectory() : "(null)", strerror( errno ) );
+	else
+	{
+		if ( getcwd( startupCwd, sizeof(startupCwd) ) )
+			Msg( "LauncherMain: cwd after chdir = '%s'\n", startupCwd );
+	}
+#else
 	_chdir( GetBaseDirectory() );
+#endif
 
 	g_LeakDump.m_bCheckLeaks = CommandLine()->CheckParm( "-leakcheck" ) ? true : false;
 
@@ -1490,7 +1538,9 @@ DLL_EXPORT int LauncherMain( int argc, char **argv )
 
 		CSourceAppSystemGroup sourceSystems;
 		CSteamApplication steamApplication( &sourceSystems );
+		Msg( "LauncherMain: starting app system run\n" );
 		int nRetval = steamApplication.Run();
+		Msg( "LauncherMain: app system run returned %d (error stage=%d)\n", nRetval, steamApplication.GetErrorStage() );
 		if ( steamApplication.GetErrorStage() == CSourceAppSystemGroup::INITIALIZATION )
 		{
 			bRestart = (nRetval == INIT_RESTART);
@@ -1593,5 +1643,6 @@ DLL_EXPORT int LauncherMain( int argc, char **argv )
 #error
 #endif
 
+	Msg( "LauncherMain: normal exit\n" );
 	return 0;
 }

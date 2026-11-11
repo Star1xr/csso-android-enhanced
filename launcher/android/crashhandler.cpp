@@ -20,9 +20,35 @@ GNU General Public License for more details.
 #include "tier0/dbg.h"
 #include <stdlib.h>
 #include <inttypes.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+#include <exception>
+#include <cstdlib>
+#include <typeinfo>
 #include "libunwind/libunwind.h"
 
 struct sigaction old_sa;
+
+namespace __cxxabiv1
+{
+	extern "C" std::type_info *__cxa_current_exception_type();
+}
+
+extern "C" const char *GetAndroidLogDir();
+
+static int g_CrashLogFd = -1;
+
+static void CrashRawWrite( const char *msg )
+{
+	if( !msg )
+		return;
+
+	if( g_CrashLogFd >= 0 )
+		write( g_CrashLogFd, msg, strlen( msg ) );
+
+	__android_log_print( ANDROID_LOG_ERROR, "SRCENG", "%s", msg );
+}
 
 #define IN_LIBGCC2 1 // means we want to define __cxxabiv1::__cxa_demangle
 namespace __cxxabiv1
@@ -41,7 +67,7 @@ struct backtrace_t
 	uintptr_t frames[MAX_FRAMES];
 };
 
-#define Log(msg) __android_log_print(ANDROID_LOG_DEBUG, "SRCENG", "%s", msg); DebugLogger()->Write(msg);
+#define Log(msg) do { CrashRawWrite(msg); DebugLogger()->Write(msg); } while(0)
 
 void printPC(void *pc)
 {
@@ -135,15 +161,63 @@ static void CrashHandler( int sig, siginfo_t *si, void *uc)
 
 	Log(">>> crash report end\n");
 
+	if( g_CrashLogFd >= 0 )
+		fsync( g_CrashLogFd );
+
 	if (old_sa.sa_sigaction)
 		(*old_sa.sa_sigaction)(sig, si, uc);
 	else if(old_sa.sa_handler)
 		(*old_sa.sa_handler)(sig);
 }
 
+static void TerminateHandler()
+{
+	CrashRawWrite( ">>> std::terminate called\n" );
+
+	std::type_info *type = __cxxabiv1::__cxa_current_exception_type();
+	if( type )
+	{
+		int status = 0;
+		char *demangled = __cxxabiv1::__cxa_demangle( type->name(), 0, 0, &status );
+		char message[2048];
+		snprintf( message, sizeof(message), ">>> uncaught exception: %s\n",
+			( demangled && status == 0 ) ? demangled : type->name() );
+		CrashRawWrite( message );
+		free( demangled );
+	}
+	else
+	{
+		CrashRawWrite( ">>> uncaught exception: unknown (no active exception)\n" );
+	}
+
+	if( g_CrashLogFd >= 0 )
+		fsync( g_CrashLogFd );
+
+	std::abort();
+}
+
 void InitCrashHandler()
 {
+	const char *logDir = GetAndroidLogDir();
+	char crashLog[2048];
+	snprintf( crashLog, sizeof(crashLog), "%s/crash.log", ( logDir && logDir[0] ) ? logDir : "." );
+
+	g_CrashLogFd = open( crashLog, O_CREAT | O_WRONLY | O_APPEND, 0666 );
+	if( g_CrashLogFd >= 0 )
+	{
+		char header[2048];
+		snprintf( header, sizeof(header), ">>> crash handler installed, log=%s\n", crashLog );
+		CrashRawWrite( header );
+	}
+	else
+	{
+		__android_log_print( ANDROID_LOG_ERROR, "SRCENG", "crash handler: cannot open %s: %s", crashLog, strerror( errno ) );
+	}
+
+	std::set_terminate( TerminateHandler );
+
 	struct sigaction act;
+	memset( &act, 0, sizeof(act) );
 	act.sa_sigaction = CrashHandler;
 	act.sa_flags = SA_SIGINFO | SA_ONSTACK;
 	sigaction(SIGSEGV, &act, &old_sa);
@@ -151,4 +225,6 @@ void InitCrashHandler()
 	sigaction(SIGBUS, &act, &old_sa);
 	sigaction(SIGFPE, &act, &old_sa);
 	sigaction(SIGTRAP, &act, &old_sa);
+	sigaction(SIGILL, &act, &old_sa);
+	sigaction(SIGSYS, &act, &old_sa);
 }

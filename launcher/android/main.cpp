@@ -19,6 +19,11 @@ GNU General Public License for more details.
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <android/log.h>
 #include <SDL_hints.h>
 #include "tier0/dbg.h"
 #include "tier0/threadtools.h"
@@ -117,9 +122,146 @@ void android_property_print(const char *name)
 }
 
 
+static char g_AndroidLogDir[2048];
+static int g_AndroidStdoutFd = -1;
+
+extern "C" const char *GetAndroidLogDir()
+{
+	return g_AndroidLogDir;
+}
+
+static bool TryAndroidLogDir( const char *dir )
+{
+	if( !dir || !dir[0] )
+		return false;
+
+	char probe[2048];
+	snprintf( probe, sizeof(probe), "%s", dir );
+
+	size_t len = strlen( probe );
+	while( len > 1 && probe[len - 1] == '/' )
+		probe[--len] = 0;
+
+	if( mkdir( probe, 0777 ) != 0 && errno != EEXIST )
+		return false;
+
+	struct stat st;
+	if( stat( probe, &st ) != 0 || !S_ISDIR( st.st_mode ) )
+		return false;
+
+	char testPath[2048];
+	snprintf( testPath, sizeof(testPath), "%s/.write_test", probe );
+	int testFd = open( testPath, O_CREAT | O_WRONLY | O_APPEND, 0666 );
+	if( testFd < 0 )
+		return false;
+	close( testFd );
+	unlink( testPath );
+
+	snprintf( g_AndroidLogDir, sizeof(g_AndroidLogDir), "%s", probe );
+	return true;
+}
+
+static void AndroidLogInit()
+{
+	char candidate[2048];
+	const char *appLog = getenv( "APP_LOG_PATH" );
+	const char *gamePath = getenv( "VALVE_GAME_PATH" );
+	const char *appData = getenv( "APP_DATA_PATH" );
+
+	bool found = false;
+
+	if( appLog && appLog[0] )
+		found = TryAndroidLogDir( appLog );
+
+	if( !found && gamePath && gamePath[0] )
+	{
+		snprintf( candidate, sizeof(candidate), "%s/csso_logs", gamePath );
+		found = TryAndroidLogDir( candidate );
+	}
+
+	if( !found && appData && appData[0] )
+	{
+		snprintf( candidate, sizeof(candidate), "%s/csso_logs", appData );
+		found = TryAndroidLogDir( candidate );
+	}
+
+	if( !found )
+	{
+		// Last resort. The directory may not be writable, but keep the path
+		// in the logs so we know where we tried to write.
+		snprintf( g_AndroidLogDir, sizeof(g_AndroidLogDir), "%s", appData ? appData : "." );
+	}
+
+	char engineLog[2048];
+	char stdoutLog[2048];
+	snprintf( engineLog, sizeof(engineLog), "%s/engine.log", g_AndroidLogDir );
+	snprintf( stdoutLog, sizeof(stdoutLog), "%s/stdout.log", g_AndroidLogDir );
+
+	// Capture raw stdout/stderr too. SDL, the Vulkan loader and DXVK write
+	// important startup failures there, not through Msg().
+	g_AndroidStdoutFd = open( stdoutLog, O_CREAT | O_WRONLY | O_APPEND, 0666 );
+	if( g_AndroidStdoutFd >= 0 )
+	{
+		dup2( g_AndroidStdoutFd, STDOUT_FILENO );
+		dup2( g_AndroidStdoutFd, STDERR_FILENO );
+		setvbuf( stdout, NULL, _IONBF, 0 );
+		setvbuf( stderr, NULL, _IONBF, 0 );
+	}
+
+	DebugLogger()->Init( engineLog );
+
+	Msg( ">>> Android log directory: %s\n", g_AndroidLogDir );
+	Msg( ">>> engine.log: %s\n", engineLog );
+	Msg( ">>> stdout.log: %s\n", stdoutLog );
+	Msg( ">>> log writable: %s\n", found ? "yes" : "no" );
+}
+
 DLL_EXPORT int LauncherMainAndroid( int argc, char **argv )
 {
+	// Open engine.log before anything else. The normal engine logger is only
+	// initialized in CSourceAppSystemGroup::PreInit(), which is far too late:
+	// every Msg() before that is buffered in memory and lost on an early exit.
+	AndroidLogInit();
+
 	InitCrashHandler();
+	Msg( ">>> crash handler installed\n" );
+
+	Msg( ">>> LauncherMainAndroid( argc=%d )\n", argc );
+	for( int i = 0; i < argc; i++ )
+		Msg( ">>> argv[%d] = '%s'\n", i, argv[i] ? argv[i] : "(null)" );
+
+	char cwd[2048];
+	if( getcwd( cwd, sizeof(cwd) ) )
+		Msg( ">>> cwd = %s\n", cwd );
+
+	const char *envNames[] = {
+		"APP_DATA_PATH", "APP_LIB_PATH", "VALVE_GAME_PATH", "APP_LOG_PATH",
+		"EXTRAS_VPK_PATH", "LANG", "DXVK_LOG_PATH", "DXVK_LOG_LEVEL"
+	};
+	for( size_t i = 0; i < sizeof(envNames) / sizeof(envNames[0]); i++ )
+	{
+		const char *value = getenv( envNames[i] );
+		Msg( ">>> env %s = %s\n", envNames[i], value ? value : "(null)" );
+	}
+
+	const char *libPath = getenv( "APP_LIB_PATH" );
+	if( libPath && libPath[0] )
+	{
+		const char *libs[] = {
+			"liblauncher.so", "libSDL2.so", "libtier0.so", "libtier1.so",
+			"libshaderapidx9.so", "libdxvk_d3d9.so"
+		};
+		for( size_t i = 0; i < sizeof(libs) / sizeof(libs[0]); i++ )
+		{
+			char path[2048];
+			snprintf( path, sizeof(path), "%s/%s", libPath, libs[i] );
+			struct stat st;
+			if( stat( path, &st ) == 0 )
+				Msg( ">>> lib %s: present (%lld bytes)\n", libs[i], (long long)st.st_size );
+			else
+				Msg( ">>> lib %s: MISSING (%s)\n", libs[i], strerror( errno ) );
+		}
+	}
 
 	Msg("GetTotalMemory() = %.2f \n", GetTotalMemory());
 
@@ -131,8 +273,14 @@ DLL_EXPORT int LauncherMainAndroid( int argc, char **argv )
 
 	SetLauncherArgs();
 
+	Msg( ">>> LauncherMain args (%d):\n", iLastArgs );
+	for( int i = 0; i < iLastArgs; i++ )
+		Msg( ">>>   [%d] '%s'\n", i, LauncherArgv[i] ? LauncherArgv[i] : "(null)" );
+
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 	DeclareCurrentThreadIsMainThread(); // Init thread propertly on Android
 
-	return LauncherMain(iLastArgs, LauncherArgv);
+	int ret = LauncherMain(iLastArgs, LauncherArgv);
+	Msg( ">>> LauncherMain returned %d\n", ret );
+	return ret;
 }

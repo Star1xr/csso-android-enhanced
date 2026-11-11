@@ -14,6 +14,9 @@ on:
 env:
   WAF_EXTRA: --use-ccache
   LAUNCHER_REPO: https://github.com/ndke01/csso-android-launcher
+  # Pinned so launcher-logging.patch keeps applying. Bump this together with
+  # the patch when the launcher is updated.
+  LAUNCHER_COMMIT: 7eb698b84d7198051f96a5ebc04a2056b6b5aa01
 
 jobs:
   apk:
@@ -61,7 +64,16 @@ jobs:
       run: |
         # "launcher/" already exists in this repo (engine launcher sources), so clone elsewhere
         rm -rf launcher-app
-        git clone --depth 1 "$LAUNCHER_REPO" launcher-app
+        git clone "$LAUNCHER_REPO" launcher-app
+        git -C launcher-app checkout --detach "$LAUNCHER_COMMIT"
+
+    - name: Apply launcher logging patch
+      run: |
+        cp launcher-logging/FileLog.java launcher-app/app/src/main/java/me/nillerusr/FileLog.java
+        cp launcher-logging/CssoApplication.java launcher-app/app/src/main/java/me/nillerusr/CssoApplication.java
+        git -C launcher-app apply --verbose "$GITHUB_WORKSPACE/launcher-logging/launcher-logging.patch"
+        grep -q 'me.nillerusr.CssoApplication' launcher-app/app/src/main/AndroidManifest.xml
+        echo "launcher logging patch applied"
 
     - name: Put the libs into the launcher
       run: |

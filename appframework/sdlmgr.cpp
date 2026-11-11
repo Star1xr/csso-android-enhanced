@@ -520,8 +520,10 @@ InitReturnVal_t CSDLMgr::Init()
 
 	if (!SDL_WasInit(SDL_INIT_VIDEO))
 	{
+		Msg( "SDL: calling SDL_Init(SDL_INIT_VIDEO)\n" );
 		if (SDL_Init(SDL_INIT_VIDEO) == -1)
 			Error( "SDL_Init(SDL_INIT_VIDEO) failed: %s", SDL_GetError() );
+		Msg( "SDL: SDL_Init(SDL_INIT_VIDEO) succeeded\n" );
 
 #if defined( DX_TO_GL_ABSTRACTION )
 		if ( CommandLine()->FindParm( "-gl_debug" ) )
@@ -832,10 +834,18 @@ bool CSDLMgr::CreateHiddenGameWindow( const char *pTitle, int width, int height 
 	// DXVK presents through an SDL_Window* that must be Vulkan-capable
 	flags |= SDL_WINDOW_VULKAN;
 #endif
+	Msg( "SDL: creating window title='%s' size=%dx%d flags=0x%x\n",
+		pTitle ? pTitle : "(null)", width, height, flags );
 	m_Window = SDL_CreateWindow( pTitle, x, y, width, height, flags );
 
 	if (m_Window == NULL)
 		Error( "Failed to create SDL window: %s", SDL_GetError() );
+	else
+	{
+		int windowWidth = 0, windowHeight = 0;
+		SDL_GetWindowSize( m_Window, &windowWidth, &windowHeight );
+		Msg( "SDL: window created at %p, size=%dx%d\n", (void *)m_Window, windowWidth, windowHeight );
+	}
 	SetAssertDialogParent( m_Window );
 
 #ifdef OSX
