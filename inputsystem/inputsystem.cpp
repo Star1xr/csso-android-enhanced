@@ -770,6 +770,12 @@ void CInputSystem::PollInputState_Platform()
 
 				case CocoaEvent_MouseButtonDown:
 				{
+					// Make sure the vgui cursor/focus is at the click position
+					// before the button event is queued. Otherwise a physical
+					// mouse click uses whatever panel had focus from the last
+					// motion event (often the button that opened a popup).
+					UpdateMousePositionState( state, (short)pEvent->m_MousePos[0], (short)pEvent->m_MousePos[1] );
+
 					int nButtonMask = pEvent->m_MouseButtonFlags;
 					ButtonCode_t dblClickCode = BUTTON_CODE_INVALID;
 					if ( pEvent->m_nMouseClickCount > 1 )

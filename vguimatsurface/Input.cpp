@@ -456,7 +456,7 @@ bool InputHandleInputEvent( const InputEvent_t &event )
 			memcpy( &_x, &event.m_nData2, sizeof(_x) );
 			memcpy( &_y, &event.m_nData3, sizeof(_y) );
 			x = w*_x; y = h*_y;
-			g_pIInput->InternalCursorMoved( x, y );
+			g_pIInput->UpdateCursorPosInternal( x, y );
 		}
 		return true;
 	case IE_ButtonDoubleClicked:
@@ -476,7 +476,14 @@ bool InputHandleInputEvent( const InputEvent_t &event )
 			if ( event.m_nData == MOUSE_WHEEL )
 				return g_pIInput->InternalMouseWheeled( event.m_nData3 );
 			if ( event.m_nData == MOUSE_XY )
-				return g_pIInput->InternalCursorMoved( event.m_nData2, event.m_nData3 );
+			{
+				// Update the cursor and mouse focus synchronously, exactly like
+				// IE_FingerDown does for touch. The old queued path left the
+				// focus on the panel that opened a popup, so physical mouse
+				// hover/clicks never reached the popup's buttons.
+				g_pIInput->UpdateCursorPosInternal( event.m_nData2, event.m_nData3 );
+				return true;
+			}
 		}
 		break;
 
@@ -516,7 +523,9 @@ bool InputHandleInputEvent( const InputEvent_t &event )
 		return true;
 
 	case IE_LocateMouseClick:
-		g_pIInput->InternalCursorMoved( event.m_nData, event.m_nData2 );
+		// Do not queue this. Physical mouse motion/button events must update
+		// the cursor and mouse focus before the button press is dispatched.
+		g_pIInput->UpdateCursorPosInternal( event.m_nData, event.m_nData2 );
 		return true;
 
 	case IE_InputLanguageChanged:
