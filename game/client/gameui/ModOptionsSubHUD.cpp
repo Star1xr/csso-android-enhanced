@@ -59,6 +59,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pRadarScale = new CCvarSlider( this, "RadarScaleSlider", "", 0.25f, 1.0f, "cl_radar_scale" );
 	m_pAlwaysShowInventory = new CCvarToggleCheckButton( this, "AlwaysShowInventoryCheckbox", "#GameUI_HUD_AlwaysShowInventory", "cl_showloadout" );
 	m_pRadarRotate = new CCvarToggleCheckButton( this, "RadarRotateCheckbox", "#GameUI_HUD_RotateRadar", "cl_radar_rotate" );
+	m_pHeadName = new CCvarToggleCheckButton( this, "HeadNameCheckbox", "Head names (teammates)", "cl_headname" );
 	m_pRadarSquare = new CLabeledCommandComboBox( this, "RadarSquareComboBox" );
 	m_pMenuBackground = new CLabeledCommandComboBox( this, "MenuBackgroundComboBox" );
 	m_pMenuAgent = new CLabeledCommandComboBox( this, "MenuAgentComboBox" );
@@ -114,6 +115,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pRadarScale->AddActionSignalTarget( this );
 	m_pAlwaysShowInventory->AddActionSignalTarget( this );
 	m_pRadarRotate->AddActionSignalTarget( this );
+	m_pHeadName->AddActionSignalTarget( this );
 	m_pRadarSquare->AddActionSignalTarget( this );
 	m_pMenuBackground->AddActionSignalTarget( this );
 	m_pMenuAgent->AddActionSignalTarget( this );
@@ -245,6 +247,7 @@ void CModOptionsSubHUD::OnResetData()
 	m_pRadarScale->Reset();
 	m_pAlwaysShowInventory->Reset();
 	m_pRadarRotate->Reset();
+	m_pHeadName->Reset();
 }
 
 //-----------------------------------------------------------------------------
@@ -260,6 +263,7 @@ void CModOptionsSubHUD::OnApplyChanges()
 	m_pRadarScale->ApplyChanges();
 	m_pAlwaysShowInventory->ApplyChanges();
 	m_pRadarRotate->ApplyChanges();
+	m_pHeadName->ApplyChanges();
 	m_pRadarSquare->ApplyChanges();
 
 	ConVarRef cl_menu_background( "cl_menu_background" );
