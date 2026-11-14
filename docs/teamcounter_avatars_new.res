@@ -4,6 +4,9 @@
 	//   [ 5 CT avatars ] [ timer / CT score + T score ] [ 5 T avatars ]
 	// The avatars (one row, colour bar under each) are placed by the code, see TC_NEW_* in
 	// cs_hud_teamcounter.cpp. This file only places the centre block.
+	// NOTE: the positions / sizes of the timer, score boxes and bomb icon below are re-applied by
+	// LayoutNew() in the code (pixel-exact and symmetric at any resolution); this file mainly
+	// provides fonts and colours. The values are the 1080p result, for reference.
 	// Everything is 1080p units. The centre block is 64 wide and as tall as an avatar + its
 	// colour bar (36 + 4 = 40): timer on top (21), the two score boxes below (18).
 	// Centre block starts at x = 5*36 + 4*4 + 4 = 200. If you change the avatar size, gap
