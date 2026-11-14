@@ -66,6 +66,8 @@ This project is using waf buildsystem. If you have waf-related questions look ht
 - Lunasvg
 - Ability to add your custom avatar & clantag. Added also UI implements for it
 - Added Gyroscope (Dogshit Edition)
+- Gyro page in Options (next to Touch): enable gyroscope, reverse left/right and up/down, sensitivity slider ( `gyroscope`, `gyroscope_reverse_x`, `gyroscope_reverse_y`, `gyroscope_sensitivity` )
+- Key bindings (Keyboard page) are available in Options on Android too
 - Fixed Name & Avatar not displayed in Achievement Menu
 - Now achievement menu save your stats , stuffs
 - Decreased the issues of missing sounds in gameplay (use snd_restart if sounds began to disappear)
