@@ -51,6 +51,7 @@ private:
 	CCvarSlider*				m_pRadarScale;
 	CCvarToggleCheckButton*		m_pAlwaysShowInventory;
 	CCvarToggleCheckButton*		m_pRadarRotate;
+	CCvarToggleCheckButton*		m_pHeadName;
 	CLabeledCommandComboBox*	m_pRadarSquare;
 	CLabeledCommandComboBox*	m_pMenuBackground;
 	CLabeledCommandComboBox*	m_pMenuAgent;
