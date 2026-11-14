@@ -154,6 +154,7 @@ CCSBuyMenuItemButton::CCSBuyMenuItemButton( Panel* parent, const char* panelName
 	m_clrIcon = COLOR_WHITE;
 	m_bDisabled = false;
 	m_bDropBuy = false;
+	m_bUnavailable = false;
 }
 
 CCSBuyMenuItemButton::~CCSBuyMenuItemButton()
@@ -204,6 +205,7 @@ void CCSBuyMenuItemButton::OnThink()
 	if ( !pPlayer )
 		return;
 
+	m_bUnavailable = false;
 	m_clrPrice = m_clrPriceAvailableFg;
 	m_clrIcon = m_clrAvailableFg;
 	SetDefaultColor( m_clrAvailableFg, m_clrAvailableBg );
@@ -213,12 +215,14 @@ void CCSBuyMenuItemButton::OnThink()
 		nAcquireMethod = AcquireMethod::BuyDrop;
 	if ( pPlayer->CanAcquire( m_nItemID, nAcquireMethod ) != AcquireResult::Allowed || m_bDisabled )
 	{
+		m_bUnavailable = true;
 		m_clrPrice = m_clrUnavailableFg;
 		m_clrIcon = m_clrUnavailableFg;
 		SetDefaultColor( m_clrUnavailableFg, m_clrUnavailableBg );
 	}
 	else if ( pPlayer->GetAccount() < m_iPrice )
 	{
+		m_bUnavailable = true;
 		m_clrPrice = m_clrPriceUnavailableFg;
 		m_clrIcon = m_clrUnavailableFg;
 		SetDefaultColor( m_clrUnavailableFg, m_clrAvailableBg );
@@ -228,7 +232,11 @@ void CCSBuyMenuItemButton::OnThink()
 void CCSBuyMenuItemButton::OnCursorEntered()
 {
 	BaseClass::OnCursorEntered();
+	ShowPreview();
+}
 
+void CCSBuyMenuItemButton::ShowPreview()
+{
 	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
 	if ( !pPlayer )
 		return;
@@ -344,7 +352,11 @@ void CCSBuyMenuItemButton::OnCursorEntered()
 void CCSBuyMenuItemButton::OnCursorExited()
 {
 	BaseClass::OnCursorExited();
+	HidePreview();
+}
 
+void CCSBuyMenuItemButton::HidePreview()
+{
 	CCSBuyMenu* pParent = dynamic_cast<CCSBuyMenu*>(GetParent());
 	if ( pParent )
 		pParent->HideSpecialMessage( PerWeaponMessage );
@@ -988,6 +1000,470 @@ void CCSBuyMenuLoadoutPanel::SetPlayer( C_CSPlayer* pPlayer )
 }
 
 
+//=============================================================================
+// Buy wheel: radial replacement for the category / item buttons
+//
+// The category buttons (BuyCategoryN) and item buttons (BuyItemN) of BuyMenu.res still exist, they are
+// only made invisible and mouse-transparent. The wheel reads them (text, price, icon, command), draws
+// them as wedges and clicks them. Hotkeys (1..9), buying, the preview of the player on the right and
+// the loadout panels at the bottom are untouched.
+//=============================================================================
+
+ConVar cl_buymenu_wheel( "cl_buymenu_wheel", "1", FCVAR_ARCHIVE, "1 = radial buy wheel, 0 = old button lists", true, 0, true, 1 );
+
+#define BUYWHEEL_MAX_SLOTS		10
+#define BUYWHEEL_ARC_STEP_DEG	6.0f
+
+class CCSBuyWheel : public Panel
+{
+	DECLARE_CLASS_SIMPLE( CCSBuyWheel, Panel );
+public:
+	CCSBuyWheel( Panel* parent, const char* panelName );
+
+	virtual void Paint();
+	virtual void OnThink();
+	virtual void OnCursorMoved( int x, int y );
+	virtual void OnCursorExited();
+	virtual void OnMousePressed( MouseCode code );
+
+	void Reset();
+
+private:
+	void CollectSlots();
+	int  SlotFromPoint( int x, int y, bool &bHub ) const;
+	void SetHover( int iSlot );
+	void GetGeometry( int &cx, int &cy, float &r0, float &r1 ) const;
+	void DrawRingSegment( int cx, int cy, float r0, float r1, float a0, float a1, Color col );
+	void DrawDisc( int cx, int cy, float r, Color col );
+	void DrawTextCentered( HFont font, const wchar_t* pwsz, int x, int y, Color col );
+	void LocalizeText( const char* psz, wchar_t* pwszOut, int nBytes );
+
+	CUtlVector<Button*> m_Slots;
+	bool m_bItemLevel;
+	int m_iHover;
+	bool m_bHubHover;
+	int m_nWhiteTexture;
+
+	CPanelAnimationVar( HFont, m_hTextFont, "text_font", "BuyMenuLoadoutMoneyFont" );
+	CPanelAnimationVar( HFont, m_hKeyFont, "key_font", "BuyMenuHotkeyFont" );
+	CPanelAnimationVar( Color, m_clrWedge, "wedge_color", "0 0 0 150" );
+	CPanelAnimationVar( Color, m_clrWedgeHover, "wedge_hover_color", "255 255 255 70" );
+	CPanelAnimationVar( Color, m_clrText, "text_color", "255 255 255 255" );
+	CPanelAnimationVar( Color, m_clrDisabled, "disabled_color", "130 130 130 255" );
+	CPanelAnimationVar( float, m_flInnerRatio, "inner_ratio", "0.42" );
+};
+
+CCSBuyWheel::CCSBuyWheel( Panel* parent, const char* panelName ) : Panel( parent, panelName )
+{
+	m_bItemLevel = false;
+	m_iHover = -1;
+	m_bHubHover = false;
+	m_nWhiteTexture = -1;
+
+	SetPaintBackgroundEnabled( false );
+	SetMouseInputEnabled( true );
+	SetKeyBoardInputEnabled( false );
+	SetVisible( false );
+}
+
+void CCSBuyWheel::Reset()
+{
+	m_iHover = -1;
+	m_bHubHover = false;
+	m_Slots.RemoveAll();
+}
+
+void CCSBuyWheel::GetGeometry( int &cx, int &cy, float &r0, float &r1 ) const
+{
+	int w, h;
+	GetSize( w, h );
+	cx = w / 2;
+	cy = h / 2;
+	r1 = MIN( w, h ) * 0.5f - 2.0f;
+	r0 = r1 * m_flInnerRatio;
+}
+
+void CCSBuyWheel::CollectSlots()
+{
+	CCSBuyMenu* pMenu = dynamic_cast<CCSBuyMenu*>( GetParent() );
+	if ( !pMenu )
+		return;
+
+	bool bItems = pMenu->IsShowingCategory();
+	const char* pszPrefix = bItems ? "BuyItem" : "BuyCategory";
+
+	CUtlVector<Button*> slots;
+	for ( int i = 1; i <= BUYWHEEL_MAX_SLOTS; i++ )
+	{
+		char szName[24];
+		Q_snprintf( szName, sizeof( szName ), "%s%d", pszPrefix, i );
+		Button* pButton = dynamic_cast<Button*>( pMenu->FindChildByName( szName ) );
+		if ( !pButton )
+			break;
+		if ( pButton->IsVisible() )
+			slots.AddToTail( pButton );
+	}
+
+	bool bChanged = ( bItems != m_bItemLevel ) || ( slots.Count() != m_Slots.Count() );
+	if ( !bChanged )
+	{
+		for ( int i = 0; i < slots.Count(); i++ )
+		{
+			if ( slots[i] != m_Slots[i] )
+			{
+				bChanged = true;
+				break;
+			}
+		}
+	}
+
+	if ( bChanged )
+	{
+		SetHover( -1 );
+		m_bItemLevel = bItems;
+		m_Slots = slots;
+	}
+}
+
+void CCSBuyWheel::OnThink()
+{
+	BaseClass::OnThink();
+	CollectSlots();
+}
+
+int CCSBuyWheel::SlotFromPoint( int x, int y, bool &bHub ) const
+{
+	bHub = false;
+	int n = m_Slots.Count();
+	if ( n <= 0 )
+		return -1;
+
+	int cx, cy;
+	float r0, r1;
+	GetGeometry( cx, cy, r0, r1 );
+
+	float dx = (float)( x - cx );
+	float dy = (float)( y - cy );
+	float dist = sqrtf( dx * dx + dy * dy );
+
+	if ( dist < r0 * 0.85f )
+	{
+		bHub = true;
+		return -1;
+	}
+	if ( dist > r1 * 1.1f )
+		return -1;
+
+	// slot 0 starts at 12 o'clock and goes clockwise
+	float deg = RAD2DEG( atan2f( dy, dx ) ) + 90.0f;
+	while ( deg < 0.0f )
+		deg += 360.0f;
+	while ( deg >= 360.0f )
+		deg -= 360.0f;
+
+	int iSlot = (int)( deg / ( 360.0f / n ) );
+	return clamp( iSlot, 0, n - 1 );
+}
+
+void CCSBuyWheel::SetHover( int iSlot )
+{
+	if ( iSlot == m_iHover )
+		return;
+
+	if ( m_bItemLevel && m_iHover >= 0 && m_iHover < m_Slots.Count() )
+	{
+		if ( CCSBuyMenuItemButton* pOld = dynamic_cast<CCSBuyMenuItemButton*>( m_Slots[m_iHover] ) )
+			pOld->HidePreview();
+	}
+
+	m_iHover = iSlot;
+
+	if ( m_bItemLevel && m_iHover >= 0 && m_iHover < m_Slots.Count() )
+	{
+		if ( CCSBuyMenuItemButton* pNew = dynamic_cast<CCSBuyMenuItemButton*>( m_Slots[m_iHover] ) )
+			pNew->ShowPreview();
+	}
+}
+
+void CCSBuyWheel::OnCursorMoved( int x, int y )
+{
+	bool bHub;
+	int iSlot = SlotFromPoint( x, y, bHub );
+	m_bHubHover = bHub && m_bItemLevel;
+	SetHover( iSlot );
+}
+
+void CCSBuyWheel::OnCursorExited()
+{
+	m_bHubHover = false;
+	SetHover( -1 );
+}
+
+void CCSBuyWheel::OnMousePressed( MouseCode code )
+{
+	CCSBuyMenu* pMenu = dynamic_cast<CCSBuyMenu*>( GetParent() );
+	if ( !pMenu )
+		return;
+
+	int x, y;
+	input()->GetCursorPos( x, y );
+	ScreenToLocal( x, y );
+
+	bool bHub;
+	int iSlot = SlotFromPoint( x, y, bHub );
+
+	// right click or the centre goes back
+	if ( code == MOUSE_RIGHT || ( bHub && m_bItemLevel ) )
+	{
+		if ( m_bItemLevel )
+			pMenu->HideCategory();
+		return;
+	}
+
+	if ( code == MOUSE_LEFT && iSlot >= 0 && iSlot < m_Slots.Count() )
+		m_Slots[iSlot]->DoClick();
+}
+
+void CCSBuyWheel::DrawRingSegment( int cx, int cy, float r0, float r1, float a0, float a1, Color col )
+{
+	int nSteps = MAX( 1, (int)ceilf( ( a1 - a0 ) / BUYWHEEL_ARC_STEP_DEG ) );
+	surface()->DrawSetColor( col );
+
+	for ( int s = 0; s < nSteps; s++ )
+	{
+		float t0 = DEG2RAD( a0 + ( a1 - a0 ) * s / nSteps );
+		float t1 = DEG2RAD( a0 + ( a1 - a0 ) * ( s + 1 ) / nSteps );
+
+		// outer(t0) -> outer(t1) -> inner(t1) -> inner(t0): clockwise on screen
+		Vertex_t v[4];
+		v[0].Init( Vector2D( cx + cosf( t0 ) * r1, cy + sinf( t0 ) * r1 ) );
+		v[1].Init( Vector2D( cx + cosf( t1 ) * r1, cy + sinf( t1 ) * r1 ) );
+		v[2].Init( Vector2D( cx + cosf( t1 ) * r0, cy + sinf( t1 ) * r0 ) );
+		v[3].Init( Vector2D( cx + cosf( t0 ) * r0, cy + sinf( t0 ) * r0 ) );
+		surface()->DrawTexturedPolygon( 4, v );
+	}
+}
+
+void CCSBuyWheel::DrawDisc( int cx, int cy, float r, Color col )
+{
+	// 12 thin "ring segments" from the centre outward would need r0 = 0, which is a valid degenerate quad
+	DrawRingSegment( cx, cy, 0.0f, r, 0.0f, 360.0f, col );
+}
+
+void CCSBuyWheel::DrawTextCentered( HFont font, const wchar_t* pwsz, int x, int y, Color col )
+{
+	if ( !pwsz || !pwsz[0] )
+		return;
+	int tw = UTIL_ComputeStringWidth( font, pwsz );
+	int th = surface()->GetFontTall( font );
+	surface()->DrawSetTextFont( font );
+	surface()->DrawSetTextColor( col );
+	surface()->DrawSetTextPos( x - tw / 2, y - th / 2 );
+	surface()->DrawPrintText( pwsz, wcslen( pwsz ) );
+}
+
+void CCSBuyWheel::LocalizeText( const char* psz, wchar_t* pwszOut, int nBytes )
+{
+	pwszOut[0] = L'\0';
+	if ( !psz || !psz[0] )
+		return;
+
+	if ( psz[0] == '#' )
+	{
+		const wchar_t* pwszLoc = g_pVGuiLocalize->Find( psz );
+		if ( pwszLoc )
+		{
+			V_wcsncpy( pwszOut, pwszLoc, nBytes );
+			return;
+		}
+	}
+	g_pVGuiLocalize->ConvertANSIToUnicode( psz, pwszOut, nBytes );
+}
+
+void CCSBuyWheel::Paint()
+{
+	int n = m_Slots.Count();
+	if ( n <= 0 )
+		return;
+
+	if ( m_nWhiteTexture == -1 )
+	{
+		m_nWhiteTexture = surface()->CreateNewTextureID();
+		surface()->DrawSetTextureFile( m_nWhiteTexture, "vgui/white", true, false );
+	}
+	surface()->DrawSetTexture( m_nWhiteTexture );
+
+	int cx, cy;
+	float r0, r1;
+	GetGeometry( cx, cy, r0, r1 );
+
+	const float flStep = 360.0f / n;
+	const float flGap = ( n > 1 ) ? 1.5f : 0.0f;
+
+	// wedges
+	for ( int i = 0; i < n; i++ )
+	{
+		float a0 = -90.0f + flStep * i + flGap * 0.5f;
+		float a1 = -90.0f + flStep * ( i + 1 ) - flGap * 0.5f;
+		DrawRingSegment( cx, cy, r0, r1, a0, a1, m_clrWedge );
+		if ( i == m_iHover )
+			DrawRingSegment( cx, cy, r0, r1, a0, a1, m_clrWedgeHover );
+	}
+
+	// hub
+	DrawDisc( cx, cy, r0 * 0.85f, m_bHubHover ? Color( 70, 70, 70, 190 ) : Color( 0, 0, 0, 150 ) );
+
+	surface()->DrawSetTexture( 0 );
+
+	wchar_t wsz[128];
+
+	if ( m_bItemLevel )
+		DrawTextCentered( m_hTextFont, L"<", cx, cy, m_clrText );
+
+	// wedge contents
+	for ( int i = 0; i < n; i++ )
+	{
+		float flMid = DEG2RAD( -90.0f + flStep * ( i + 0.5f ) );
+		float rMid = ( r0 + r1 ) * 0.5f;
+		int mx = cx + (int)( cosf( flMid ) * rMid );
+		int my = cy + (int)( sinf( flMid ) * rMid );
+
+		// hotkey at the outer rim
+		wchar_t wszKey[4] = { (wchar_t)( L'1' + i ), L'\0' };
+		int kx = cx + (int)( cosf( flMid ) * ( r1 - surface()->GetFontTall( m_hKeyFont ) ) );
+		int ky = cy + (int)( sinf( flMid ) * ( r1 - surface()->GetFontTall( m_hKeyFont ) ) );
+		DrawTextCentered( m_hKeyFont, wszKey, kx, ky, Color( 160, 160, 160, 255 ) );
+
+		if ( !m_bItemLevel )
+		{
+			m_Slots[i]->GetText( wsz, sizeof( wsz ) );
+			DrawTextCentered( m_hTextFont, wsz, mx, my, m_clrText );
+			continue;
+		}
+
+		CCSBuyMenuItemButton* pItem = dynamic_cast<CCSBuyMenuItemButton*>( m_Slots[i] );
+		if ( !pItem )
+			continue;
+
+		Color clrText = pItem->IsUnavailable() ? m_clrDisabled : m_clrText;
+		int nameTall = surface()->GetFontTall( m_hTextFont );
+		int priceTall = nameTall;
+
+		const BuyMenuItemIcon& icon = pItem->GetItemIcon();
+		int iconW = 0, iconH = 0;
+		if ( icon.m_nTextureID != -1 )
+		{
+			float flMaxW = ( r1 - r0 ) * 0.9f;
+			float flScale = MIN( 1.0f, flMaxW / MAX( 1, icon.m_iTextureSize[0] ) );
+			iconW = (int)( icon.m_iTextureSize[0] * flScale );
+			iconH = (int)( icon.m_iTextureSize[1] * flScale );
+		}
+
+		int totalH = iconH + nameTall + priceTall;
+		int y = my - totalH / 2;
+
+		if ( iconW > 0 )
+		{
+			surface()->DrawSetTexture( icon.m_nTextureID );
+			surface()->DrawSetColor( pItem->GetIconColor() );
+			g_pMatSystemSurface->DisableClipping( true );
+			surface()->DrawTexturedSubRect( mx - iconW / 2, y, mx + iconW / 2, y + iconH,
+				icon.m_flTextureCoords[0], icon.m_flTextureCoords[1], icon.m_flTextureCoords[2], icon.m_flTextureCoords[3] );
+			g_pMatSystemSurface->DisableClipping( false );
+		}
+		y += iconH;
+
+		LocalizeText( pItem->GetItemName(), wsz, sizeof( wsz ) );
+		DrawTextCentered( m_hTextFont, wsz, mx, y + nameTall / 2, clrText );
+		y += nameTall;
+
+		DrawTextCentered( m_hTextFont, pItem->GetPriceText(), mx, y + priceTall / 2, pItem->GetPriceColor() );
+	}
+}
+
+
+bool CCSBuyMenu::IsWheelEnabled() const
+{
+	return cl_buymenu_wheel.GetBool();
+}
+
+// Hides the old buttons (they stay visible for their hotkeys, but draw nothing and ignore the mouse)
+void CCSBuyMenu::ApplyWheelMode()
+{
+	bool bWheel = IsWheelEnabled();
+
+	static const char* s_pszPrefixes[] = { "BuyCategory", "BuyItem" };
+	for ( int p = 0; p < ARRAYSIZE( s_pszPrefixes ); p++ )
+	{
+		for ( int i = 1; i <= 32; i++ )
+		{
+			char szName[24];
+			Q_snprintf( szName, sizeof( szName ), "%s%d", s_pszPrefixes[p], i );
+			Panel* pPanel = FindChildByName( szName );
+			if ( !pPanel )
+				break;
+			pPanel->SetAlpha( bWheel ? 0 : 255 );
+			pPanel->SetMouseInputEnabled( !bWheel );
+		}
+	}
+
+	m_pBuyWheel->Reset();
+	m_pBuyWheel->SetVisible( bWheel );
+	if ( bWheel )
+	{
+		UpdateWheelBounds();
+		m_pBuyWheel->MoveToFront();
+	}
+}
+
+// Without a "BuyWheel" block in BuyMenu.res the wheel is a square around the old button lists
+void CCSBuyMenu::UpdateWheelBounds()
+{
+	if ( m_bWheelBoundsFromRes )
+		return;
+
+	int minX = 99999, minY = 99999, maxX = -99999, maxY = -99999;
+	static const char* s_pszPrefixes[] = { "BuyCategory", "BuyItem" };
+	for ( int p = 0; p < ARRAYSIZE( s_pszPrefixes ); p++ )
+	{
+		for ( int i = 1; i <= 32; i++ )
+		{
+			char szName[24];
+			Q_snprintf( szName, sizeof( szName ), "%s%d", s_pszPrefixes[p], i );
+			Panel* pPanel = FindChildByName( szName );
+			if ( !pPanel )
+				break;
+
+			int x, y, w, h;
+			pPanel->GetBounds( x, y, w, h );
+			minX = MIN( minX, x );
+			minY = MIN( minY, y );
+			maxX = MAX( maxX, x + w );
+			maxY = MAX( maxY, y + h );
+		}
+	}
+
+	int parentW, parentH;
+	GetSize( parentW, parentH );
+
+	if ( maxX <= minX || maxY <= minY )
+	{
+		// no buttons found: left side of the screen
+		minX = 0;
+		maxX = parentW / 3;
+		minY = 0;
+		maxY = parentH;
+	}
+
+	int size = MAX( maxX - minX, maxY - minY );
+	size = clamp( size, (int)( parentH * 0.45f ), (int)( parentH * 0.7f ) );
+
+	int cx = ( minX + maxX ) / 2;
+	int cy = ( minY + maxY ) / 2;
+	m_pBuyWheel->SetBounds( cx - size / 2, cy - size / 2, size, size );
+}
+
+
 CCSBuyMenu::CCSBuyMenu( IViewPort* pViewPort ): Frame( NULL, PANEL_BUY )
 {
 	m_pViewPort = pViewPort;
@@ -1019,11 +1495,15 @@ CCSBuyMenu::CCSBuyMenu( IViewPort* pViewPort ): Frame( NULL, PANEL_BUY )
 	m_pItemDescriptionLabel = new Label( this, "ItemDescriptionLabel", L"" );
 	m_pBuyItemsBackground = new Panel( this, "BuyItemsBackground" );
 	m_pPlayerModel = new CCSBuyMenuPlayerImage( this, "PlayerModel" );
+	m_pBuyWheel = new CCSBuyWheel( this, "BuyWheel" );
 	m_kvBuyMenuConfig = new KeyValues( "BuyMenuConfig" );
 	if ( !m_kvBuyMenuConfig->LoadFromFile( g_pFullFileSystem, "scripts/buymenuconfig.txt", "GAME" ) )
 		DevWarning( "Failed to load the buy menu config! Buy menu won't work!\n" );
 
 	LoadControlSettings( "Resource/UI/BuyMenu.res" );
+
+	// if the .res gave the wheel a size, keep it, otherwise it is placed over the old buttons
+	m_bWheelBoundsFromRes = ( m_pBuyWheel->GetWide() > 0 && m_pBuyWheel->GetTall() > 0 );
 }
 
 CCSBuyMenu::~CCSBuyMenu()
@@ -1051,6 +1531,8 @@ void CCSBuyMenu::ShowPanel( bool bShow )
 		m_iReBuyKey = gameuifuncs->GetButtonCodeForBind( "rebuy" );
 		m_iAutoBuyKey = gameuifuncs->GetButtonCodeForBind( "autobuy" );
 		m_iAccount = -1;
+
+		ApplyWheelMode();
 
 		const char* pszPlayerModel = modelinfo->GetModelName( pPlayer->GetModel() );
 		m_pPlayerModel->SetPlayerModel( pszPlayerModel );
@@ -1475,7 +1957,7 @@ void CCSBuyMenu::ShowCategory( KeyValues* kvCategory )
 		i++;
 	}
 
-	m_pBuyItemsBackground->SetVisible( true );
+	m_pBuyItemsBackground->SetVisible( !IsWheelEnabled() );
 	m_pSpecialMessageLabel->SetVisible( true );
 	m_bShowingCategory = true;
 }

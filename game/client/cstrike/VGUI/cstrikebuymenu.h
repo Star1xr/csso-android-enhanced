@@ -20,6 +20,7 @@ using namespace vgui;
 
 class C_CSPlayer;
 class CAvatarImagePanel;
+class CCSBuyWheel;
 
 enum BuyMenuSpecialMessageType_t
 {
@@ -104,6 +105,16 @@ public:
 	void SetDropBuy( bool bDropBuy ) { m_bDropBuy = bDropBuy; }
 	void SetIcon( const char* pszTexturePath ) { m_ItemIcon.SetTexture( pszTexturePath, icon_wide, icon_tall, m_nItemID ); }
 
+	// used by the buy wheel, which draws the item instead of this button
+	void ShowPreview();
+	void HidePreview();
+	const char* GetItemName() const { return m_pszItemName; }
+	const wchar_t* GetPriceText() const { return m_wszPrice; }
+	const BuyMenuItemIcon& GetItemIcon() const { return m_ItemIcon; }
+	Color GetPriceColor() const { return m_clrPrice; }
+	Color GetIconColor() const { return m_clrIcon; }
+	bool IsUnavailable() const { return m_bUnavailable; }
+
 private:
 	CPanelAnimationVar( Color, m_clrPriceAvailableFg, "fgcolor_price_available", "144 238 144 255" );
 	CPanelAnimationVar( Color, m_clrPriceUnavailableFg, "fgcolor_price_unavailable", "255 0 0 255" );
@@ -126,6 +137,7 @@ private:
 	Color m_clrIcon;
 	bool m_bDisabled;
 	bool m_bDropBuy;
+	bool m_bUnavailable;
 };
 
 #define MATERIAL_MAX_LIGHT_COUNT 4
@@ -246,7 +258,15 @@ public:
 	void ShowSpecialMessage( const wchar_t* pwszText, BuyMenuSpecialMessageType_t nMessageType );
 	void HideSpecialMessage( BuyMenuSpecialMessageType_t nMessageType );
 
+	bool IsShowingCategory() const { return m_bShowingCategory; }
+	bool IsWheelEnabled() const;
+
 private:
+	void ApplyWheelMode();
+	void UpdateWheelBounds();
+
+	CCSBuyWheel* m_pBuyWheel;
+	bool m_bWheelBoundsFromRes;
 	Label* m_pMoneyLabel;
 	Label* m_pSpecialMessageLabel;
 	Label* m_pBuyTimeLeftLabel;
