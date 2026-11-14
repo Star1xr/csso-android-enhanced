@@ -9,15 +9,22 @@ on this shitty fork
 
 has useless full ci build and:
 
-- [ ] dxvk native (https://github.com/Star1xr/dxvk-native-android)
+
+- [ ] Round buy wheel
+
+- [ ] Better CS:GO chat
+
+- [ ] New teamcounter style like csgo
+
+- [ ] dxvk native WIP (https://github.com/Star1xr/dxvk-native-android)
+
+- [ ] CSM (after dxvk native) (https://github.com/celisej567/Fake-CSM-Mapbase)
 
 - [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](https://github.com/FJH03/CSSO-NOOFFICIAL-MP/)
 
 - [x] Team counter style option: Mod Options -> HUD -> choose between alive count (original) and avatars (`hud_teamcounter_style 0/1`).
 
 - [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
-
-- [x] Better CS:GO chat
 
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
