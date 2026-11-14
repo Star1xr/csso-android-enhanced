@@ -17,7 +17,7 @@ has useless full ci build and:
 
 - [ ] CSM (idk, maybe...) (https://github.com/celisej567/Fake-CSM-Mapbase)
 
-- [ ] ANGLE in its own branch and Vphysics jolt into main branch
+- [ ] Vphysics jolt into main branch
 
 - [x] New teamcounter style like csgo
 
