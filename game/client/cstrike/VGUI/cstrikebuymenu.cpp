@@ -1036,9 +1036,9 @@ private:
 	void FreeIcons();
 	void DrawCategory( int i, int cx, int cy, float r0, float r1, float flMid, bool bHover );
 	void CollectSlots();
-	int  SlotFromPoint( int x, int y, bool &bHub ) const;
+	int  SlotFromPoint( int x, int y, bool &bHub );
 	void SetHover( int iSlot );
-	void GetGeometry( int &cx, int &cy, float &r0, float &r1 ) const;
+	void GetGeometry( int &cx, int &cy, float &r0, float &r1 );
 	void DrawRingSegment( int cx, int cy, float r0, float r1, float a0, float a1, Color col );
 	void DrawDisc( int cx, int cy, float r, Color col );
 	void DrawTextCentered( HFont font, const wchar_t* pwsz, int x, int y, Color col );
@@ -1129,7 +1129,7 @@ void CCSBuyWheel::Reset()
 	m_Slots.RemoveAll();
 }
 
-void CCSBuyWheel::GetGeometry( int &cx, int &cy, float &r0, float &r1 ) const
+void CCSBuyWheel::GetGeometry( int &cx, int &cy, float &r0, float &r1 )
 {
 	int w, h;
 	GetSize( w, h );
@@ -1187,7 +1187,7 @@ void CCSBuyWheel::OnThink()
 	CollectSlots();
 }
 
-int CCSBuyWheel::SlotFromPoint( int x, int y, bool &bHub ) const
+int CCSBuyWheel::SlotFromPoint( int x, int y, bool &bHub )
 {
 	bHub = false;
 	int n = m_Slots.Count();
