@@ -13,9 +13,11 @@ has useless full ci build and:
 
 - [ ] Better CS:GO chat
 
-- [ ] dxvk native (stopped the development. im tired of this shit. half complete) (https://github.com/Star1xr/dxvk-native-android)
+- [ ] dxvk native in its own branch (stopped the development. im tired of this shit. half complete, works but has bugs and is unplayable)
 
-- [ ] CSM (after dxvk native) (https://github.com/celisej567/Fake-CSM-Mapbase)
+- [ ] CSM (idk, maybe...) (https://github.com/celisej567/Fake-CSM-Mapbase)
+
+- [-] ANGLE and Vphysics jolt into main branch
 
 - [x] New teamcounter style like csgo
 
