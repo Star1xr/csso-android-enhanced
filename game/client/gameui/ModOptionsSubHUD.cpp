@@ -73,14 +73,18 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	{
 		wchar_t szAlive[]   = L"Alive count";
 		wchar_t szAvatars[] = L"Player avatars";
+		wchar_t szAvatarsNew[] = L"Avatar new";
 		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Alive" ) )
 			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Alive", szAlive, "" );
 		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_Avatars" ) )
 			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_Avatars", szAvatars, "" );
+		if ( !g_pVGuiLocalize->Find( "#GameUI_HUD_TeamCounterStyle_AvatarsNew" ) )
+			g_pVGuiLocalize->AddString( "GameUI_HUD_TeamCounterStyle_AvatarsNew", szAvatarsNew, "" );
 	}
 
 	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Alive", "hud_teamcounter_style 0" );
 	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_Avatars", "hud_teamcounter_style 1" );
+	m_pTeamCounterStyle->AddItem( "#GameUI_HUD_TeamCounterStyle_AvatarsNew", "hud_teamcounter_style 2" );
 
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_0", "cl_hud_healthammo_style 0" );
 	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_1", "cl_hud_healthammo_style 1" );
