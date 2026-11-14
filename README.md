@@ -9,7 +9,6 @@ on this shitty fork
 
 has useless full ci build and:
 
-
 - [ ] Round buy wheel
 
 - [ ] Better CS:GO chat
@@ -23,6 +22,8 @@ has useless full ci build and:
 - [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](https://github.com/FJH03/CSSO-NOOFFICIAL-MP/)
 
 - [x] Team counter style option: Mod Options -> HUD -> choose between alive count (original) and avatars (`hud_teamcounter_style 0/1`).
+
+- [x] Checkbox for headname on Mod Options -> HUD. 
 
 - [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
 
