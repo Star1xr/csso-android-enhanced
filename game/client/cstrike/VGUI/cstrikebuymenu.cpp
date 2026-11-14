@@ -1064,7 +1064,7 @@ private:
 	CPanelAnimationVar( Color, m_clrWedgeHover, "wedge_hover_color", "255 255 255 70" );
 	CPanelAnimationVar( Color, m_clrText, "text_color", "255 255 255 255" );
 	CPanelAnimationVar( Color, m_clrDisabled, "disabled_color", "130 130 130 255" );
-	CPanelAnimationVar( float, m_flInnerRatio, "inner_ratio", "0.42" );
+	CPanelAnimationVar( float, m_flInnerRatio, "inner_ratio", "0.15" );
 };
 
 CCSBuyWheel::CCSBuyWheel( Panel* parent, const char* panelName ) : Panel( parent, panelName )
@@ -1347,7 +1347,7 @@ void CCSBuyWheel::DrawCategory( int i, int cx, int cy, float r0, float r1, float
 	for ( wchar_t* p = wsz; *p; p++ )
 		*p = towupper( *p );
 
-	float rTitle = r0 + ( r1 - r0 ) * 0.38f;
+	float rTitle = r1 * 0.5f;		// text_inset_radius 0.5 in CSSO 2.0 BuyMenu.res
 	int tx = cx + (int)( cosf( flMid ) * rTitle );
 	int ty = cy + (int)( sinf( flMid ) * rTitle );
 	DrawTextCentered( m_hTextFont, wsz, tx, ty, bHover ? Color( 255, 255, 255, 255 ) : Color( 185, 183, 183, 255 ) );
@@ -1449,15 +1449,17 @@ void CCSBuyWheel::Paint()
 	for ( int i = 0; i < n; i++ )
 	{
 		float flMid = DEG2RAD( -90.0f + flStep * ( i + 0.5f ) );
-		float rMid = ( r0 + r1 ) * 0.5f;
+		// item point: text_inset_radius / info_inset_radius 0.64 of the radius
+		float rMid = r1 * 0.64f;
 		int mx = cx + (int)( cosf( flMid ) * rMid );
 		int my = cy + (int)( sinf( flMid ) * rMid );
 
 		// hotkey: Panorama draws it faint (opacity 0.4)
 		wchar_t wszKey[4] = { (wchar_t)( L'1' + i ), L'\0' };
 		int kTall = surface()->GetFontTall( m_hKeyFont );
-		int kx = cx + (int)( cosf( flMid ) * ( r0 + kTall ) );
-		int ky = cy + (int)( sinf( flMid ) * ( r0 + kTall ) );
+		float rKey = MAX( r1 * 0.2f, r0 + kTall * 0.8f );		// number_inset_radius 0.2
+		int kx = cx + (int)( cosf( flMid ) * rKey );
+		int ky = cy + (int)( sinf( flMid ) * rKey );
 		DrawTextCentered( m_hKeyFont, wszKey, kx, ky, Color( 255, 255, 255, 100 ) );
 
 		if ( !m_bItemLevel )
@@ -1470,41 +1472,37 @@ void CCSBuyWheel::Paint()
 		if ( !pItem )
 			continue;
 
-		Color clrText = pItem->IsUnavailable() ? m_clrDisabled : m_clrText;
-		int nameTall = surface()->GetFontTall( m_hTextFont );
+		// CSSO 2.0 layout: name 46px above the point, icon 48px tall on it, price 48px below (1080p units)
+		Color clrText = pItem->IsUnavailable() ? m_clrDisabled : Color( 255, 255, 255, 160 );
+		Color clrPrice = pItem->GetPriceColor();
+		if ( !pItem->IsUnavailable() && clrPrice.g() > 200 && clrPrice.r() < 200 )
+			clrPrice[3] = 144;		// price_fgcolor_available "144 238 144 144"
 
-		// icon rendered at 50px (of 600) like .buywheel-item__icon
-		int nIconTall = MAX( 16, (int)( 50 * flScale ) );
+		int nIconTall = MAX( 16, (int)( 48 * flScale ) );
 		BuyMenuItemIcon* pIcon = GetIcon( pItem->GetIconPath(), nIconTall );
 		int iconW = 0, iconH = 0;
 		if ( pIcon )
 		{
-			float flMaxW = ( r1 - r0 ) * 0.85f;
+			float flMaxW = r1 * 0.5f;
 			float flFit = MIN( 1.0f, flMaxW / MAX( 1, pIcon->m_iTextureSize[0] ) );
 			iconW = (int)( pIcon->m_iTextureSize[0] * flFit );
 			iconH = (int)( pIcon->m_iTextureSize[1] * flFit );
 		}
 
-		int pad = (int)( 6 * flScale );
-		int totalH = nameTall + ( iconH + pad * 2 ) + nameTall;
-		int y = my - totalH / 2;
-
 		LocalizeText( pItem->GetItemName(), wsz, sizeof( wsz ) );
-		DrawTextCentered( m_hTextFont, wsz, mx, y + nameTall / 2, clrText );
-		y += nameTall + pad;
+		DrawTextCentered( m_hTextFont, wsz, mx, my - (int)( 46 * flScale ), clrText );
 
 		if ( pIcon )
 		{
 			surface()->DrawSetTexture( pIcon->m_nTextureID );
 			surface()->DrawSetColor( pItem->GetIconColor() );
 			g_pMatSystemSurface->DisableClipping( true );
-			surface()->DrawTexturedSubRect( mx - iconW / 2, y, mx + iconW / 2, y + iconH,
+			surface()->DrawTexturedSubRect( mx - iconW / 2, my - iconH / 2, mx + iconW / 2, my + iconH / 2,
 				pIcon->m_flTextureCoords[0], pIcon->m_flTextureCoords[1], pIcon->m_flTextureCoords[2], pIcon->m_flTextureCoords[3] );
 			g_pMatSystemSurface->DisableClipping( false );
 		}
-		y += iconH + pad;
 
-		DrawTextCentered( m_hTextFont, pItem->GetPriceText(), mx, y + nameTall / 2, pItem->GetPriceColor() );
+		DrawTextCentered( m_hTextFont, pItem->GetPriceText(), mx, my + (int)( 48 * flScale ), clrPrice );
 	}
 }
 
@@ -1573,10 +1571,10 @@ void CCSBuyMenu::UpdateWheelBounds()
 	int parentW, parentH;
 	GetSize( parentW, parentH );
 
-	// Panorama: 600px wheel on 1080p, below the timer, above the loadout panels
-	int size = (int)( parentH * 600.0f / 1080.0f );
+	// CSSO 2.0 BuyPanel: 612x612 at (w300, 68) on 1080p, which is also the old item list area
+	int size = (int)( parentH * 612.0f / 1080.0f );
 	int cx = ( maxX > minX ) ? ( minX + maxX ) / 2 : parentW / 4;
-	int cy = (int)( parentH * 410.0f / 1080.0f );
+	int cy = (int)( parentH * ( 68.0f + 306.0f ) / 1080.0f );
 	m_pBuyWheel->SetBounds( cx - size / 2, cy - size / 2, size, size );
 }
 
