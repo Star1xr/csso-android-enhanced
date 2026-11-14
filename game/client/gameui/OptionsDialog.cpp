@@ -23,6 +23,7 @@
 #include "OptionsSubKeyboard.h"
 #include "OptionsSubMouse.h"
 #include "OptionsSubTouch.h"
+#include "OptionsSubGyro.h"
 #include "OptionsSubAudio.h"
 #include "OptionsSubVideo.h"
 #include "OptionsSubVoice.h"
@@ -83,12 +84,14 @@ COptionsDialog::COptionsDialog(vgui::Panel *parent) : PropertyDialog(parent, "Op
 	{
 		AddPage(new COptionsSubPortal(this), "#GameUI_Portal");
 	}
-#ifndef ANDROID
+	// key bindings are also needed on Android (keyboard / gamepad users)
 	AddPage(new COptionsSubKeyboard(this), "#GameUI_Keyboard");
+#ifndef ANDROID
 	AddPage(new COptionsSubMouse(this), "#GameUI_Mouse");
 #endif
 #ifdef ANDROID
 	AddPage(new COptionsSubTouch(this), "Touch");
+	AddPage(new COptionsSubGyro(this), "Gyro");
 #endif
 
 	m_pOptionsSubAudio = new COptionsSubAudio(this);

@@ -27,6 +27,10 @@ has useless full ci build and:
 
 - [x] CS:GO chat is always enabled, the `-nocustomchat` launch option was removed
 
+- [x] Gyro page in Options next to Touch: enable, reverse left/right and up/down, sensitivity slider (`gyroscope`, `gyroscope_reverse_x`, `gyroscope_reverse_y`, `gyroscope_sensitivity`).
+
+- [x] Key bindings (Keyboard page) are available in Options on Android too.
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
