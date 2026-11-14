@@ -103,7 +103,8 @@ public:
 	void SetWeaponID( CSWeaponID nWeaponID );
 	void SetDisabled( bool bDisabled ) { m_bDisabled = bDisabled; }
 	void SetDropBuy( bool bDropBuy ) { m_bDropBuy = bDropBuy; }
-	void SetIcon( const char* pszTexturePath ) { m_ItemIcon.SetTexture( pszTexturePath, icon_wide, icon_tall, m_nItemID ); }
+	void SetIcon( const char* pszTexturePath ) { V_strncpy( m_szIconPath, pszTexturePath ? pszTexturePath : "", sizeof( m_szIconPath ) ); m_ItemIcon.SetTexture( pszTexturePath, icon_wide, icon_tall, m_nItemID ); }
+	const char* GetIconPath() const { return m_szIconPath; }
 
 	// used by the buy wheel, which draws the item instead of this button
 	void ShowPreview();
@@ -138,6 +139,7 @@ private:
 	bool m_bDisabled;
 	bool m_bDropBuy;
 	bool m_bUnavailable;
+	char m_szIconPath[MAX_PATH];
 };
 
 #define MATERIAL_MAX_LIGHT_COUNT 4
@@ -260,6 +262,7 @@ public:
 
 	bool IsShowingCategory() const { return m_bShowingCategory; }
 	bool IsWheelEnabled() const;
+	KeyValues* GetBuyMenuConfig() const { return m_kvBuyMenuConfig; }
 
 private:
 	void ApplyWheelMode();

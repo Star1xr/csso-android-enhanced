@@ -7,6 +7,7 @@
 
 #include "cbase.h"
 #include "cstrikebuymenu.h"
+#include <wctype.h>
 #include <vgui/ISurface.h>
 #include <vgui/ILocalize.h>
 #include <vgui/IInput.h>
@@ -155,6 +156,7 @@ CCSBuyMenuItemButton::CCSBuyMenuItemButton( Panel* parent, const char* panelName
 	m_bDisabled = false;
 	m_bDropBuy = false;
 	m_bUnavailable = false;
+	m_szIconPath[0] = '\0';
 }
 
 CCSBuyMenuItemButton::~CCSBuyMenuItemButton()
@@ -1027,8 +1029,12 @@ public:
 	virtual void OnMousePressed( MouseCode code );
 
 	void Reset();
+	virtual ~CCSBuyWheel();
 
 private:
+	BuyMenuItemIcon* GetIcon( const char* pszPath, int nTall );
+	void FreeIcons();
+	void DrawCategory( int i, int cx, int cy, float r0, float r1, float flMid, bool bHover );
 	void CollectSlots();
 	int  SlotFromPoint( int x, int y, bool &bHub ) const;
 	void SetHover( int iSlot );
@@ -1037,6 +1043,14 @@ private:
 	void DrawDisc( int cx, int cy, float r, Color col );
 	void DrawTextCentered( HFont font, const wchar_t* pwsz, int x, int y, Color col );
 	void LocalizeText( const char* psz, wchar_t* pwszOut, int nBytes );
+
+	struct IconCache_t
+	{
+		CUtlString path;
+		BuyMenuItemIcon* pIcon;
+	};
+	CUtlVector<IconCache_t> m_Icons;
+	int m_nIconTall;
 
 	CUtlVector<Button*> m_Slots;
 	bool m_bItemLevel;
@@ -1059,11 +1073,53 @@ CCSBuyWheel::CCSBuyWheel( Panel* parent, const char* panelName ) : Panel( parent
 	m_iHover = -1;
 	m_bHubHover = false;
 	m_nWhiteTexture = -1;
+	m_nIconTall = 0;
 
 	SetPaintBackgroundEnabled( false );
 	SetMouseInputEnabled( true );
 	SetKeyBoardInputEnabled( false );
 	SetVisible( false );
+}
+
+CCSBuyWheel::~CCSBuyWheel()
+{
+	FreeIcons();
+}
+
+void CCSBuyWheel::FreeIcons()
+{
+	FOR_EACH_VEC( m_Icons, i )
+	{
+		m_Icons[i].pIcon->DestroyTexture();
+		delete m_Icons[i].pIcon;
+	}
+	m_Icons.RemoveAll();
+}
+
+// SVG icons rendered at the size they are drawn (keeps them sharp). Cache is dropped when the size changes.
+BuyMenuItemIcon* CCSBuyWheel::GetIcon( const char* pszPath, int nTall )
+{
+	if ( !pszPath || !pszPath[0] || nTall <= 0 )
+		return NULL;
+
+	if ( nTall != m_nIconTall )
+	{
+		FreeIcons();
+		m_nIconTall = nTall;
+	}
+
+	FOR_EACH_VEC( m_Icons, i )
+	{
+		if ( !Q_stricmp( m_Icons[i].path.Get(), pszPath ) )
+			return m_Icons[i].pIcon->m_nTextureID != -1 ? m_Icons[i].pIcon : NULL;
+	}
+
+	IconCache_t entry;
+	entry.path = pszPath;
+	entry.pIcon = new BuyMenuItemIcon();
+	entry.pIcon->SetTexture( pszPath, 0, nTall, WEAPON_NONE );
+	m_Icons.AddToTail( entry );
+	return entry.pIcon->m_nTextureID != -1 ? entry.pIcon : NULL;
 }
 
 void CCSBuyWheel::Reset()
@@ -1280,6 +1336,71 @@ void CCSBuyWheel::LocalizeText( const char* psz, wchar_t* pwszOut, int nBytes )
 	g_pVGuiLocalize->ConvertANSIToUnicode( psz, pwszOut, nBytes );
 }
 
+void CCSBuyWheel::DrawCategory( int i, int cx, int cy, float r0, float r1, float flMid, bool bHover )
+{
+	CCSBuyMenu* pMenu = dynamic_cast<CCSBuyMenu*>( GetParent() );
+	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
+
+	// title, upper case like the Panorama wheel
+	wchar_t wsz[128];
+	m_Slots[i]->GetText( wsz, sizeof( wsz ) );
+	for ( wchar_t* p = wsz; *p; p++ )
+		*p = towupper( *p );
+
+	float rTitle = r0 + ( r1 - r0 ) * 0.38f;
+	int tx = cx + (int)( cosf( flMid ) * rTitle );
+	int ty = cy + (int)( sinf( flMid ) * rTitle );
+	DrawTextCentered( m_hTextFont, wsz, tx, ty, bHover ? Color( 255, 255, 255, 255 ) : Color( 185, 183, 183, 255 ) );
+
+	// up to 6 weapon icons of this category along the outer edge of the wedge
+	if ( !pMenu || !pMenu->GetBuyMenuConfig() || !pPlayer || !m_Slots[i]->GetCommand() )
+		return;
+
+	KeyValues* kvCategory = pMenu->GetBuyMenuConfig()->FindKey( m_Slots[i]->GetCommand()->GetString( "command", "" ) );
+	if ( !kvCategory )
+		return;
+
+	const float flScale = r1 / 300.0f;
+	const int nIconTall = MAX( 8, (int)( 18 * flScale ) );
+	const int nIconMaxWide = (int)( 46 * flScale );
+
+	const char* pszIcons[6];
+	int nIcons = 0;
+	for ( KeyValues* pkv = kvCategory->GetFirstSubKey(); pkv && nIcons < 6; pkv = pkv->GetNextKey() )
+	{
+		int iTeam = pkv->GetInt( "team" );
+		if ( iTeam != TEAM_UNASSIGNED && pPlayer->GetTeamNumber() != iTeam )
+			continue;
+		if ( AliasToWeaponID( pkv->GetName() ) == WEAPON_NONE )
+			continue;
+		pszIcons[nIcons++] = pkv->GetString( "icon" );
+	}
+
+	float rIcon = r1 * 0.84f;
+	float flSpread = DEG2RAD( 8.0f );
+	for ( int k = 0; k < nIcons; k++ )
+	{
+		BuyMenuItemIcon* pIcon = GetIcon( pszIcons[k], nIconTall );
+		if ( !pIcon )
+			continue;
+
+		float a = flMid + ( k - ( nIcons - 1 ) * 0.5f ) * flSpread;
+		int ix = cx + (int)( cosf( a ) * rIcon );
+		int iy = cy + (int)( sinf( a ) * rIcon );
+
+		float flFit = MIN( 1.0f, (float)nIconMaxWide / MAX( 1, pIcon->m_iTextureSize[0] ) );
+		int w = (int)( pIcon->m_iTextureSize[0] * flFit );
+		int h = (int)( pIcon->m_iTextureSize[1] * flFit );
+
+		surface()->DrawSetTexture( pIcon->m_nTextureID );
+		surface()->DrawSetColor( bHover ? Color( 255, 255, 255, 255 ) : Color( 185, 183, 183, 255 ) );
+		g_pMatSystemSurface->DisableClipping( true );
+		surface()->DrawTexturedSubRect( ix - w / 2, iy - h / 2, ix + w / 2, iy + h / 2,
+			pIcon->m_flTextureCoords[0], pIcon->m_flTextureCoords[1], pIcon->m_flTextureCoords[2], pIcon->m_flTextureCoords[3] );
+		g_pMatSystemSurface->DisableClipping( false );
+	}
+}
+
 void CCSBuyWheel::Paint()
 {
 	int n = m_Slots.Count();
@@ -1299,6 +1420,9 @@ void CCSBuyWheel::Paint()
 
 	const float flStep = 360.0f / n;
 	const float flGap = ( n > 1 ) ? 1.5f : 0.0f;
+
+	// Panorama: big flat grey disc behind the wheel (rgb 66, opacity 0.35)
+	DrawDisc( cx, cy, r1 + 6.0f, Color( 66, 66, 66, 90 ) );
 
 	// wedges
 	for ( int i = 0; i < n; i++ )
@@ -1320,7 +1444,8 @@ void CCSBuyWheel::Paint()
 	if ( m_bItemLevel )
 		DrawTextCentered( m_hTextFont, L"<", cx, cy, m_clrText );
 
-	// wedge contents
+	const float flScale = r1 / 300.0f;
+
 	for ( int i = 0; i < n; i++ )
 	{
 		float flMid = DEG2RAD( -90.0f + flStep * ( i + 0.5f ) );
@@ -1328,16 +1453,16 @@ void CCSBuyWheel::Paint()
 		int mx = cx + (int)( cosf( flMid ) * rMid );
 		int my = cy + (int)( sinf( flMid ) * rMid );
 
-		// hotkey at the outer rim
+		// hotkey: Panorama draws it faint (opacity 0.4)
 		wchar_t wszKey[4] = { (wchar_t)( L'1' + i ), L'\0' };
-		int kx = cx + (int)( cosf( flMid ) * ( r1 - surface()->GetFontTall( m_hKeyFont ) ) );
-		int ky = cy + (int)( sinf( flMid ) * ( r1 - surface()->GetFontTall( m_hKeyFont ) ) );
-		DrawTextCentered( m_hKeyFont, wszKey, kx, ky, Color( 160, 160, 160, 255 ) );
+		int kTall = surface()->GetFontTall( m_hKeyFont );
+		int kx = cx + (int)( cosf( flMid ) * ( r0 + kTall ) );
+		int ky = cy + (int)( sinf( flMid ) * ( r0 + kTall ) );
+		DrawTextCentered( m_hKeyFont, wszKey, kx, ky, Color( 255, 255, 255, 100 ) );
 
 		if ( !m_bItemLevel )
 		{
-			m_Slots[i]->GetText( wsz, sizeof( wsz ) );
-			DrawTextCentered( m_hTextFont, wsz, mx, my, m_clrText );
+			DrawCategory( i, cx, cy, r0, r1, flMid, i == m_iHover );
 			continue;
 		}
 
@@ -1347,37 +1472,39 @@ void CCSBuyWheel::Paint()
 
 		Color clrText = pItem->IsUnavailable() ? m_clrDisabled : m_clrText;
 		int nameTall = surface()->GetFontTall( m_hTextFont );
-		int priceTall = nameTall;
 
-		const BuyMenuItemIcon& icon = pItem->GetItemIcon();
+		// icon rendered at 50px (of 600) like .buywheel-item__icon
+		int nIconTall = MAX( 16, (int)( 50 * flScale ) );
+		BuyMenuItemIcon* pIcon = GetIcon( pItem->GetIconPath(), nIconTall );
 		int iconW = 0, iconH = 0;
-		if ( icon.m_nTextureID != -1 )
+		if ( pIcon )
 		{
-			float flMaxW = ( r1 - r0 ) * 0.9f;
-			float flScale = MIN( 1.0f, flMaxW / MAX( 1, icon.m_iTextureSize[0] ) );
-			iconW = (int)( icon.m_iTextureSize[0] * flScale );
-			iconH = (int)( icon.m_iTextureSize[1] * flScale );
+			float flMaxW = ( r1 - r0 ) * 0.85f;
+			float flFit = MIN( 1.0f, flMaxW / MAX( 1, pIcon->m_iTextureSize[0] ) );
+			iconW = (int)( pIcon->m_iTextureSize[0] * flFit );
+			iconH = (int)( pIcon->m_iTextureSize[1] * flFit );
 		}
 
-		int totalH = iconH + nameTall + priceTall;
+		int pad = (int)( 6 * flScale );
+		int totalH = nameTall + ( iconH + pad * 2 ) + nameTall;
 		int y = my - totalH / 2;
-
-		if ( iconW > 0 )
-		{
-			surface()->DrawSetTexture( icon.m_nTextureID );
-			surface()->DrawSetColor( pItem->GetIconColor() );
-			g_pMatSystemSurface->DisableClipping( true );
-			surface()->DrawTexturedSubRect( mx - iconW / 2, y, mx + iconW / 2, y + iconH,
-				icon.m_flTextureCoords[0], icon.m_flTextureCoords[1], icon.m_flTextureCoords[2], icon.m_flTextureCoords[3] );
-			g_pMatSystemSurface->DisableClipping( false );
-		}
-		y += iconH;
 
 		LocalizeText( pItem->GetItemName(), wsz, sizeof( wsz ) );
 		DrawTextCentered( m_hTextFont, wsz, mx, y + nameTall / 2, clrText );
-		y += nameTall;
+		y += nameTall + pad;
 
-		DrawTextCentered( m_hTextFont, pItem->GetPriceText(), mx, y + priceTall / 2, pItem->GetPriceColor() );
+		if ( pIcon )
+		{
+			surface()->DrawSetTexture( pIcon->m_nTextureID );
+			surface()->DrawSetColor( pItem->GetIconColor() );
+			g_pMatSystemSurface->DisableClipping( true );
+			surface()->DrawTexturedSubRect( mx - iconW / 2, y, mx + iconW / 2, y + iconH,
+				pIcon->m_flTextureCoords[0], pIcon->m_flTextureCoords[1], pIcon->m_flTextureCoords[2], pIcon->m_flTextureCoords[3] );
+			g_pMatSystemSurface->DisableClipping( false );
+		}
+		y += iconH + pad;
+
+		DrawTextCentered( m_hTextFont, pItem->GetPriceText(), mx, y + nameTall / 2, pItem->GetPriceColor() );
 	}
 }
 
@@ -1446,20 +1573,10 @@ void CCSBuyMenu::UpdateWheelBounds()
 	int parentW, parentH;
 	GetSize( parentW, parentH );
 
-	if ( maxX <= minX || maxY <= minY )
-	{
-		// no buttons found: left side of the screen
-		minX = 0;
-		maxX = parentW / 3;
-		minY = 0;
-		maxY = parentH;
-	}
-
-	int size = MAX( maxX - minX, maxY - minY );
-	size = clamp( size, (int)( parentH * 0.45f ), (int)( parentH * 0.7f ) );
-
-	int cx = ( minX + maxX ) / 2;
-	int cy = ( minY + maxY ) / 2;
+	// Panorama: 600px wheel on 1080p, below the timer, above the loadout panels
+	int size = (int)( parentH * 600.0f / 1080.0f );
+	int cx = ( maxX > minX ) ? ( minX + maxX ) / 2 : parentW / 4;
+	int cy = (int)( parentH * 410.0f / 1080.0f );
 	m_pBuyWheel->SetBounds( cx - size / 2, cy - size / 2, size, size );
 }
 
