@@ -9,15 +9,15 @@ on this shitty fork
 
 has useless full ci build and:
 
-- [ ] Round buy wheel
-
-- [ ] Better CS:GO chat
-
 - [ ] dxvk native in its own branch (stopped the development. im tired of this shit. half complete, works but has bugs and is unplayable)
 
 - [ ] CSM (idk, maybe...) (https://github.com/celisej567/Fake-CSM-Mapbase)
 
 - [ ] Vphysics jolt into main branch
+
+- [ ] Round buy wheel
+
+- [ ] Better CS:GO chat
 
 - [x] New teamcounter style like csgo
 
