@@ -1212,10 +1212,10 @@ void CCSBuyWheel::OnMousePressed( MouseCode code )
 	bool bHub;
 	int iSlot = SlotFromPoint( x, y, bHub );
 
-	// right click or the centre goes back
-	if ( code == MOUSE_RIGHT || ( bHub && m_bItemLevel ) )
+	// the centre goes back (ESC / buy key do the same, handled by the buy menu)
+	if ( bHub && m_bItemLevel )
 	{
-		if ( m_bItemLevel )
+		if ( code == MOUSE_LEFT )
 			pMenu->HideCategory();
 		return;
 	}
