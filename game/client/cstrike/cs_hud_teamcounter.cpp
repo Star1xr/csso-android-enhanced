@@ -39,19 +39,27 @@ ConVar hud_playercount_pos( "hud_playercount_pos", "0", FCVAR_ARCHIVE,
 // Team counter style. Selected from Mod Options -> HUD.
 //   0 = alive count (original team counter)
 //   1 = player avatars
+//   2 = avatar new (CS:GO competitive look, coloured players, own .res)
 enum TeamCounterStyle_t
 {
         TC_STYLE_ALIVE   = 0,
         TC_STYLE_AVATARS = 1,
+        TC_STYLE_AVATARS_NEW = 2,
 };
 
+static inline bool TC_IsAvatarStyle( int iStyle )
+{
+        return iStyle == TC_STYLE_AVATARS || iStyle == TC_STYLE_AVATARS_NEW;
+}
+
 ConVar hud_teamcounter_style( "hud_teamcounter_style", "0", FCVAR_ARCHIVE,
-        "Team counter style: 0 = alive count, 1 = player avatars",
-        true, 0, true, 1 );
+        "Team counter style: 0 = alive count, 1 = player avatars, 2 = avatar new (CS:GO style)",
+        true, 0, true, 2 );
 
 // Each style has its own layout file.
 #define TC_RES_AVATARS  "resource/hud/teamcounter.res"
 #define TC_RES_ALIVE    "resource/hud/teamcounter_alive.res"
+#define TC_RES_AVATARS_NEW "resource/hud/teamcounter_avatars_new.res"
 
 static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 
@@ -67,6 +75,26 @@ static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 #define TC_BASE_OUTLINE         2       // colored border thickness around each tile
 #define TC_BASE_CENTER_W        84      // width of center timer/score block
 #define TC_BASE_CENTER_GAP      6       // gap between team block and center block
+
+// "Avatar new" style (must match resource/hud/teamcounter_avatars_new.res, 1080p units):
+// 5 players per team in ONE row, a colour bar under every avatar, no outline box.
+#define TC_NEW_SLOTS            5
+#define TC_NEW_AVATAR_SIZE      36
+#define TC_NEW_AVATAR_GAP       4
+#define TC_NEW_BAR_H            4       // player colour bar under the avatar
+#define TC_NEW_CENTER_W         84
+#define TC_NEW_CENTER_GAP       6
+#define TC_NEW_PANEL_H          72      // tall enough for the timer + score boxes of the .res
+
+// CS:GO competitive teammate colours: yellow, purple, green, blue, orange
+static const Color TC_PLAYER_COLORS[TC_NEW_SLOTS] =
+{
+        Color( 244, 214,  44, 255 ),
+        Color( 160,  95, 220, 255 ),
+        Color(  70, 200,  90, 255 ),
+        Color(  70, 140, 235, 255 ),
+        Color( 240, 140,  40, 255 ),
+};
 
 // Team outline colors (RGBA)
 static const Color TC_CT_OUTLINE_COLOR  ( 74,  155, 214, 230 );  // CT blue
@@ -100,6 +128,8 @@ private:
         //-------------------------------------------------------------------------
         // Internal helpers
         //-------------------------------------------------------------------------
+        void    LayoutNew();
+        void    PaintNew();
         void    ApplyStyle( int iStyle );               // switch between alive count / avatars
         void    UpdateAvatarMode();                     // avatars style: assign players to slots
         void    UpdateAliveMode();                      // alive count style: alive counters / skulls
@@ -266,7 +296,7 @@ CHudTeamCounter::CHudTeamCounter( const char *pElementName )
         m_iNumActiveTSlots      = 0;
 
         // Load the layout (.res) for the selected style
-        ApplyStyle( clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS ) );
+        ApplyStyle( clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS_NEW ) );
 }
 
 
@@ -281,10 +311,15 @@ void CHudTeamCounter::ApplyStyle( int iStyle )
 {
         m_iStyle = iStyle;
 
-        const bool bAvatars = ( m_iStyle == TC_STYLE_AVATARS );
+        const bool bAvatars = TC_IsAvatarStyle( m_iStyle );
 
         // Load the layout of the new style (fonts, colors, positions, ...)
-        LoadControlSettings( bAvatars ? TC_RES_AVATARS : TC_RES_ALIVE );
+        const char *pszRes = TC_RES_ALIVE;
+        if ( m_iStyle == TC_STYLE_AVATARS )
+                pszRes = TC_RES_AVATARS;
+        else if ( m_iStyle == TC_STYLE_AVATARS_NEW )
+                pszRes = TC_RES_AVATARS_NEW;
+        LoadControlSettings( pszRes );
 
         // Hide everything that belongs to the other style
         m_pCTAliveCounterLabel->SetVisible( !bAvatars );
@@ -484,6 +519,93 @@ void CHudTeamCounter::Layout()
 
 
 //-----------------------------------------------------------------------------
+// LayoutNew – "avatar new" style: 5 avatars per team in one row, centre block
+//             (timer / score) is placed by teamcounter_avatars_new.res
+//   [ T5..T1 avatars ] [ timer / score ] [ T1..T5 avatars ]   (CT left, T right)
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::LayoutNew()
+{
+        m_iAvatarSize   = ScalePx( TC_NEW_AVATAR_SIZE );
+        m_iOutlineThick = ScalePx( TC_NEW_BAR_H );     // colour bar height
+        int gap         = ScalePx( TC_NEW_AVATAR_GAP );
+        int centerW     = ScalePx( TC_NEW_CENTER_W );
+        int centerGap   = ScalePx( TC_NEW_CENTER_GAP );
+
+        int tileH  = m_iAvatarSize + m_iOutlineThick;
+        int teamW  = TC_NEW_SLOTS * m_iAvatarSize + ( TC_NEW_SLOTS - 1 ) * gap;
+        int panelW = teamW + centerGap + centerW + centerGap + teamW;
+        int panelH = MAX( ScalePx( TC_NEW_PANEL_H ), tileH );
+
+        int panelX = ( ScreenWidth() - panelW ) / 2;
+        int panelY = m_bIsAtTheBottom ? ( ScreenHeight() - panelH - ScalePx( 4 ) ) : ScalePx( 2 );
+        SetPos( panelX, panelY );
+        SetSize( panelW, panelH );
+
+        int tOriginX = teamW + centerGap + centerW + centerGap;
+
+        for ( int i = 0; i < TC_MAX_AVATAR_SLOTS; i++ )
+        {
+                if ( i >= TC_NEW_SLOTS )
+                {
+                        m_CTSlotRects[i] = { 0, 0, 0, 0 };
+                        m_TSlotRects[i]  = { 0, 0, 0, 0 };
+                        continue;
+                }
+
+                // slot 0 is next to the centre block
+                int sxCT = ( TC_NEW_SLOTS - 1 - i ) * ( m_iAvatarSize + gap );
+                int sxT  = tOriginX + i * ( m_iAvatarSize + gap );
+
+                m_CTSlotRects[i] = { sxCT, 0, m_iAvatarSize, tileH };
+                m_TSlotRects[i]  = { sxT,  0, m_iAvatarSize, tileH };
+
+                m_CTSlots[i].pAvatar->SetBounds( sxCT, 0, m_iAvatarSize, m_iAvatarSize );
+                m_CTSlots[i].pAvatar->SetAvatarSize( m_iAvatarSize, m_iAvatarSize );
+                m_CTSlots[i].pSkull->SetBounds( sxCT, 0, m_iAvatarSize, m_iAvatarSize );
+
+                m_TSlots[i].pAvatar->SetBounds( sxT, 0, m_iAvatarSize, m_iAvatarSize );
+                m_TSlots[i].pAvatar->SetAvatarSize( m_iAvatarSize, m_iAvatarSize );
+                m_TSlots[i].pSkull->SetBounds( sxT, 0, m_iAvatarSize, m_iAvatarSize );
+        }
+}
+
+
+//-----------------------------------------------------------------------------
+// PaintNew – dark tile behind every player + colour bar (dimmed when dead)
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::PaintNew()
+{
+        vgui::ISurface *pSurface = vgui::surface();
+        if ( !pSurface )
+                return;
+
+        for ( int team = 0; team < 2; team++ )
+        {
+                const AvatarSlot_t *pSlots = team ? m_TSlots : m_CTSlots;
+                const SlotRect_t   *pRects = team ? m_TSlotRects : m_CTSlotRects;
+                int nActive = team ? m_iNumActiveTSlots : m_iNumActiveCTSlots;
+
+                for ( int i = 0; i < nActive && i < TC_NEW_SLOTS; i++ )
+                {
+                        const SlotRect_t &r = pRects[i];
+                        bool bAlive = pSlots[i].bIsAlive;
+
+                        // background of the avatar
+                        pSurface->DrawSetColor( TC_DEAD_BG_COLOR );
+                        pSurface->DrawFilledRect( r.x, r.y, r.x + r.w, r.y + r.w );
+
+                        // colour bar, grey and dark when dead
+                        Color bar = TC_PLAYER_COLORS[i];
+                        if ( !bAlive )
+                                bar = Color( bar.r() / 4, bar.g() / 4, bar.b() / 4, 160 );
+                        pSurface->DrawSetColor( bar );
+                        pSurface->DrawFilledRect( r.x, r.y + r.w, r.x + r.w, r.y + r.h );
+                }
+        }
+}
+
+
+//-----------------------------------------------------------------------------
 // PerformLayout – called on init and every resolution change
 //-----------------------------------------------------------------------------
 void CHudTeamCounter::PerformLayout()
@@ -493,6 +615,8 @@ void CHudTeamCounter::PerformLayout()
         // Alive count style is fully positioned by teamcounter_alive.res
         if ( m_iStyle == TC_STYLE_AVATARS )
                 Layout();
+        else if ( m_iStyle == TC_STYLE_AVATARS_NEW )
+                LayoutNew();
 }
 
 
@@ -506,6 +630,11 @@ void CHudTeamCounter::PaintBackground()
         BaseClass::PaintBackground();
 
         // Team outlines belong to the avatars style only
+        if ( m_iStyle == TC_STYLE_AVATARS_NEW )
+        {
+                PaintNew();
+                return;
+        }
         if ( m_iStyle != TC_STYLE_AVATARS )
                 return;
 
@@ -591,6 +720,7 @@ void CHudTeamCounter::UpdateAvatarMode()
                 return;
 
         // Build per-team player index lists
+        const int iMaxSlots = ( m_iStyle == TC_STYLE_AVATARS_NEW ) ? TC_NEW_SLOTS : TC_MAX_AVATAR_SLOTS;
         CUtlVector<int> ctList, tList;
         ctList.EnsureCapacity( TC_MAX_AVATAR_SLOTS );
         tList.EnsureCapacity( TC_MAX_AVATAR_SLOTS );
@@ -601,9 +731,9 @@ void CHudTeamCounter::UpdateAvatarMode()
                         continue;
 
                 int team = g_PR->GetTeam(i);
-                if ( team == TEAM_CT && ctList.Count() < TC_MAX_AVATAR_SLOTS )
+                if ( team == TEAM_CT && ctList.Count() < iMaxSlots )
                         ctList.AddToTail(i);
-                else if ( team == TEAM_TERRORIST && tList.Count() < TC_MAX_AVATAR_SLOTS )
+                else if ( team == TEAM_TERRORIST && tList.Count() < iMaxSlots )
                         tList.AddToTail(i);
         }
 
@@ -674,7 +804,7 @@ void CHudTeamCounter::OnThink()
         //--------------------------------------------------------------------------
         // Style toggle (alive count / avatars)
         //--------------------------------------------------------------------------
-        int iStyle = clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS );
+        int iStyle = clamp( hud_teamcounter_style.GetInt(), (int)TC_STYLE_ALIVE, (int)TC_STYLE_AVATARS_NEW );
         if ( m_iStyle != iStyle )
                 ApplyStyle( iStyle );
 
@@ -685,7 +815,7 @@ void CHudTeamCounter::OnThink()
         {
                 m_bIsAtTheBottom = hud_playercount_pos.GetBool();
 
-                if ( m_iStyle == TC_STYLE_AVATARS )
+                if ( TC_IsAvatarStyle( m_iStyle ) )
                         InvalidateLayout( true, false );
                 else
                         UpdateAlivePosition();
@@ -713,7 +843,7 @@ void CHudTeamCounter::OnThink()
         //--------------------------------------------------------------------------
         // Style specific part: avatar slots or alive counters
         //--------------------------------------------------------------------------
-        if ( m_iStyle == TC_STYLE_AVATARS )
+        if ( TC_IsAvatarStyle( m_iStyle ) )
                 UpdateAvatarMode();
         else
                 UpdateAliveMode();
@@ -779,7 +909,7 @@ void CHudTeamCounter::UpdateRoundTimer()
         //--------------------------------------------------------------------------
         // Alive count style: original round timer behaviour
         //--------------------------------------------------------------------------
-        if ( m_iStyle != TC_STYLE_AVATARS )
+        if ( !TC_IsAvatarStyle( m_iStyle ) )
         {
                 if ( m_iRoundTime < (int)ceil( pRules->GetRoundRemainingTime() ) )
                         g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerReset" );
