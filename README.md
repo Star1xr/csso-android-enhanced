@@ -13,11 +13,11 @@ has useless full ci build and:
 
 - [ ] Better CS:GO chat
 
-- [ ] New teamcounter style like csgo
-
 - [ ] dxvk native WIP (https://github.com/Star1xr/dxvk-native-android)
 
 - [ ] CSM (after dxvk native) (https://github.com/celisej567/Fake-CSM-Mapbase)
+
+- [x] New teamcounter style like csgo
 
 - [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](https://github.com/FJH03/CSSO-NOOFFICIAL-MP/)
 
