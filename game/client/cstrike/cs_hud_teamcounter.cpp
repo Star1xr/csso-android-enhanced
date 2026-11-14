@@ -82,9 +82,10 @@ static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 #define TC_NEW_AVATAR_SIZE      36
 #define TC_NEW_AVATAR_GAP       4
 #define TC_NEW_BAR_H            4       // player colour bar under the avatar
-#define TC_NEW_CENTER_W         84
-#define TC_NEW_CENTER_GAP       6
-#define TC_NEW_PANEL_H          72      // tall enough for the timer + score boxes of the .res
+#define TC_NEW_CENTER_W         64      // timer on top, CT / T score boxes below
+#define TC_NEW_CENTER_GAP       4
+#define TC_NEW_PANEL_H          40      // = avatar + colour bar, the centre block has the same height
+#define TC_NEW_LOCAL_BORDER     2       // white frame around the local player's avatar
 
 // CS:GO competitive teammate colours: yellow, purple, green, blue, orange
 static const Color TC_PLAYER_COLORS[TC_NEW_SLOTS] =
@@ -120,6 +121,7 @@ public:
         virtual void ApplySchemeSettings( IScheme *pScheme );
         virtual void PerformLayout();
         virtual void PaintBackground();
+        virtual void PostChildPaint();
         virtual void Reset( void );
         virtual bool ShouldDraw();
         virtual void OnThink();
@@ -534,7 +536,7 @@ void CHudTeamCounter::LayoutNew()
         int tileH  = m_iAvatarSize + m_iOutlineThick;
         int teamW  = TC_NEW_SLOTS * m_iAvatarSize + ( TC_NEW_SLOTS - 1 ) * gap;
         int panelW = teamW + centerGap + centerW + centerGap + teamW;
-        int panelH = MAX( ScalePx( TC_NEW_PANEL_H ), tileH );
+        int panelH = tileH;
 
         int panelX = ( ScreenWidth() - panelW ) / 2;
         int panelY = m_bIsAtTheBottom ? ( ScreenHeight() - panelH - ScalePx( 4 ) ) : ScalePx( 2 );
@@ -600,6 +602,47 @@ void CHudTeamCounter::PaintNew()
                                 bar = Color( bar.r() / 4, bar.g() / 4, bar.b() / 4, 160 );
                         pSurface->DrawSetColor( bar );
                         pSurface->DrawFilledRect( r.x, r.y + r.w, r.x + r.w, r.y + r.h );
+                }
+        }
+}
+
+
+//-----------------------------------------------------------------------------
+// PostChildPaint – white frame around the local player's avatar (avatar new),
+//                  drawn after the avatar panels so it is not painted over
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::PostChildPaint()
+{
+        BaseClass::PostChildPaint();
+
+        if ( m_iStyle != TC_STYLE_AVATARS_NEW )
+                return;
+
+        vgui::ISurface *pSurface = vgui::surface();
+        if ( !pSurface )
+                return;
+
+        const int iLocal = GetLocalPlayerIndex();
+        const int t = MAX( 1, ScalePx( TC_NEW_LOCAL_BORDER ) );
+
+        pSurface->DrawSetColor( Color( 255, 255, 255, 255 ) );
+
+        for ( int team = 0; team < 2; team++ )
+        {
+                const AvatarSlot_t *pSlots = team ? m_TSlots : m_CTSlots;
+                const SlotRect_t   *pRects = team ? m_TSlotRects : m_CTSlotRects;
+                int nActive = team ? m_iNumActiveTSlots : m_iNumActiveCTSlots;
+
+                for ( int i = 0; i < nActive && i < TC_NEW_SLOTS; i++ )
+                {
+                        if ( pSlots[i].iLastPlayerIndex != iLocal )
+                                continue;
+
+                        const SlotRect_t &r = pRects[i];
+                        pSurface->DrawFilledRect( r.x,           r.y,           r.x + r.w,     r.y + t );           // top
+                        pSurface->DrawFilledRect( r.x,           r.y + r.w - t, r.x + r.w,     r.y + r.w );         // bottom
+                        pSurface->DrawFilledRect( r.x,           r.y + t,       r.x + t,       r.y + r.w - t );     // left
+                        pSurface->DrawFilledRect( r.x + r.w - t, r.y + t,       r.x + r.w,     r.y + r.w - t );     // right
                 }
         }
 }
@@ -1002,7 +1045,10 @@ void CHudTeamCounter::UpdateRoundTimer()
                 int iMinutes = m_iRoundTime / 60;
                 int iSeconds = m_iRoundTime % 60;
 
-                V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d : %.2d", iMinutes, iSeconds );
+                if ( m_iStyle == TC_STYLE_AVATARS_NEW )
+                        V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d:%.2d", iMinutes, iSeconds );
+                else
+                        V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d : %.2d", iMinutes, iSeconds );
                 m_pRoundTimerLabel->SetText( unicode );
         }
 }
