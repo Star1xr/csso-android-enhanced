@@ -135,13 +135,29 @@ jobs:
         done
 
     - name: Sign APK
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       run: |
         APK=$(ls launcher-app/app/build/outputs/apk/release/*.apk | head -1)
-        keytool -genkeypair -keystore csso.keystore -alias csso -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass android -keypass android -dname "CN=CSSO"
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          # persistent key (repo secrets): every build is signed the same way, so APKs update each other
+          echo "$KEYSTORE_BASE64" | base64 -d > csso.keystore
+          ALIAS="${KEY_ALIAS:-csso}"
+          PASS="$KEYSTORE_PASSWORD"
+        else
+          echo "::warning::No KEYSTORE_BASE64 secret: signing with a throwaway key. This APK can NOT update an APK from another build, uninstall the old one first."
+          keytool -genkeypair -keystore csso.keystore -alias csso -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android -dname "CN=CSSO"
+          ALIAS=csso
+          PASS=android
+        fi
+        export PASS
         "$ANDROID_HOME/build-tools/34.0.0/zipalign" -f -p 4 "$APK" aligned.apk
-        "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign --ks csso.keystore --ks-pass pass:android --key-pass pass:android \
-          --out csso-dxvk-release.apk aligned.apk
+        "$ANDROID_HOME/build-tools/34.0.0/apksigner" sign --ks csso.keystore --ks-key-alias "$ALIAS" \
+          --ks-pass env:PASS --key-pass env:PASS --out csso-dxvk-release.apk aligned.apk
+        "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs csso-dxvk-release.apk | head -3
 
     - name: Upload APK
       uses: actions/upload-artifact@v7
