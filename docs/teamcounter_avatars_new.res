@@ -2,7 +2,7 @@
 {
 	// "Avatar new" team counter style (hud_teamcounter_style 2), CS:GO competitive look:
 	//   [ 5 CT avatars ] [ timer / CT score + T score ] [ 5 T avatars ]
-	// The avatars (one row, colour bar under each) are placed by the code, see TC_NEW_* in
+	// The avatars (one row, team-coloured bar under each) are placed by the code, see TC_NEW_* in
 	// cs_hud_teamcounter.cpp. This file only places the centre block.
 	// NOTE: the positions / sizes of the timer, score boxes and bomb icon below are re-applied by
 	// LayoutNew() in the code (pixel-exact and symmetric at any resolution); this file mainly

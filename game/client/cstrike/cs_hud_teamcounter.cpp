@@ -77,25 +77,19 @@ static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 #define TC_BASE_CENTER_GAP      6       // gap between team block and center block
 
 // "Avatar new" style (must match resource/hud/teamcounter_avatars_new.res, 1080p units):
-// 5 players per team in ONE row, a colour bar under every avatar, no outline box.
+// 5 players per team in ONE row, a team-coloured bar under every avatar, no outline box.
 #define TC_NEW_SLOTS            5
 #define TC_NEW_AVATAR_SIZE      36
 #define TC_NEW_AVATAR_GAP       4
-#define TC_NEW_BAR_H            4       // player colour bar under the avatar
+#define TC_NEW_BAR_H            4       // team colour bar under the avatar
 #define TC_NEW_CENTER_W         64      // timer on top, CT / T score boxes below (rounded to 2*score box + 2)
 #define TC_NEW_CENTER_GAP       4
 #define TC_NEW_PANEL_H          40      // = avatar + colour bar, the centre block has the same height
 #define TC_NEW_LOCAL_BORDER     2       // white frame around the local player's avatar
 
-// CS:GO competitive teammate colours: yellow, purple, green, blue, orange
-static const Color TC_PLAYER_COLORS[TC_NEW_SLOTS] =
-{
-        Color( 244, 214,  44, 255 ),
-        Color( 160,  95, 220, 255 ),
-        Color(  70, 200,  90, 255 ),
-        Color(  70, 140, 235, 255 ),
-        Color( 240, 140,  40, 255 ),
-};
+// "Avatar new" colour bar under each avatar, by team
+static const Color TC_NEW_CT_BAR_COLOR( 160, 160, 160, 255 );   // counter-terrorist: grey
+static const Color TC_NEW_T_BAR_COLOR ( 239, 218, 164, 255 );   // terrorist: rgb(239, 218, 164)
 
 // Team outline colors (RGBA)
 static const Color TC_CT_OUTLINE_COLOR  ( 74,  155, 214, 230 );  // CT blue
@@ -598,7 +592,7 @@ void CHudTeamCounter::LayoutNew()
 
 
 //-----------------------------------------------------------------------------
-// PaintNew – dark tile behind every player + colour bar (dimmed when dead)
+// PaintNew – dark tile behind every player + team colour bar (dimmed when dead)
 //-----------------------------------------------------------------------------
 void CHudTeamCounter::PaintNew()
 {
@@ -622,7 +616,7 @@ void CHudTeamCounter::PaintNew()
                         pSurface->DrawFilledRect( r.x, r.y, r.x + r.w, r.y + r.w );
 
                         // colour bar, grey and dark when dead
-                        Color bar = TC_PLAYER_COLORS[i];
+                        Color bar = team ? TC_NEW_T_BAR_COLOR : TC_NEW_CT_BAR_COLOR;
                         if ( !bAlive )
                                 bar = Color( bar.r() / 4, bar.g() / 4, bar.b() / 4, 160 );
                         pSurface->DrawSetColor( bar );
