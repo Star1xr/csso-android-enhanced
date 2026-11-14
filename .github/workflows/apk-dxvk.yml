@@ -13,6 +13,8 @@ on:
 
 env:
   WAF_EXTRA: --use-ccache
+  # DXVK branch the libdxvk_d3d9.so is built from (picked up by scripts/build-dxvk-android.sh)
+  DXVK_REF: fix/android-instance-ext
   LAUNCHER_REPO: https://github.com/ndke01/csso-android-launcher
   # Pinned so launcher-logging.patch keeps applying. Bump this together with
   # the patch when the launcher is updated.
