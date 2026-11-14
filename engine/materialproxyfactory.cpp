@@ -16,6 +16,86 @@
 #include "tier0/memdbgon.h"
 extern CSysModule		*g_ClientDLLModule;
 
+// CS:GO materials spell proxy names in lower case ("clamp", "texturescroll"), but the interface
+// registry compares names case sensitive. Known client proxy names, to find the right spelling.
+static const char *s_ClientProxyNames[] =
+{
+	"Shield",
+	"HeliBlade",
+	"AnimatedTexture",
+	"AnimatedOffsetTexture",
+	"AnimateSpecificTexture",
+	"VortEmissive",
+	"FleshInterior",
+	"PlayerProximity",
+	"PlayerTeamMatch",
+	"PlayerView",
+	"PlayerSpeed",
+	"PlayerPosition",
+	"EntitySpeed",
+	"EntityRandom",
+	"TaserMeter",
+	"StatTrakDigit",
+	"IronSightAmount",
+	"StatTrakIllum",
+	"PlayerLogo",
+	"PlayerLogoOnModel",
+	"BreakableSurface",
+	"Health",
+	"ParticleSphereProxy",
+	"ConveyorScroll",
+	"Monitor",
+	"TextureTransform",
+	"MatrixRotate",
+	"Camo",
+	"ToggleTexture",
+	"Thermal",
+	"EntityOrigin",
+	"EntityOriginAlyx",
+	"Ep1IntroVortRefract",
+	"CurrentTime",
+	"MaterialModify",
+	"MaterialModifyAnimated",
+	"Alpha",
+	"accumbuff4sample",
+	"AnimatedEntityTexture",
+	"TextureScroll",
+	"Dummy",
+	"lamphalo",
+	"lampbeam",
+	"Pupil",
+	"Shadow",
+	"ShadowModel",
+	"IsNPC",
+	"engine_post",
+	"MotionBlur",
+	"Add",
+	"Subtract",
+	"Multiply",
+	"Divide",
+	"Clamp",
+	"Sine",
+	"Equals",
+	"Frac",
+	"Int",
+	"LinearRamp",
+	"UniformNoise",
+	"GaussianNoise",
+	"Exponential",
+	"Abs",
+	"Empty",
+	"LessOrEqual",
+	"WrapMinMax",
+	"SelectFirstIfNonZero",
+	"PortalStaticModel",
+	"PortalStatic",
+	"PortalOpenAmount",
+	"PortalPickAlphaMask",
+	"WorldDims",
+	"WaterLOD",
+	"CrosshairColor",
+};
+
 IMaterialProxy *CMaterialProxyFactory::CreateProxy( const char *proxyName )
 {
 #if !defined(SWDS)
@@ -63,7 +143,25 @@ IMaterialProxy *CMaterialProxyFactory::LookupProxy( const char *proxyName, Creat
 	proxyVersionedName = ( char * )_alloca( buflen );
 	Q_strncpy( proxyVersionedName, proxyName, buflen );
 	Q_strncat( proxyVersionedName, IMATERIAL_PROXY_INTERFACE_VERSION, buflen, COPY_ALL_CHARACTERS );
-	return ( IMaterialProxy * )factory( proxyVersionedName, NULL );
+	IMaterialProxy *pProxy = ( IMaterialProxy * )factory( proxyVersionedName, NULL );
+	if ( pProxy )
+		return pProxy;
+
+	// Different capitalisation than the registered name? Try the canonical spelling.
+	for ( int i = 0; i < ARRAYSIZE( s_ClientProxyNames ); i++ )
+	{
+		if ( Q_stricmp( s_ClientProxyNames[i], proxyName ) )
+			continue;
+		if ( !Q_strcmp( s_ClientProxyNames[i], proxyName ) )
+			break;	// same spelling, it really doesn't exist
+
+		int len2 = Q_strlen( s_ClientProxyNames[i] ) + Q_strlen( IMATERIAL_PROXY_INTERFACE_VERSION ) + 1;
+		char *pName2 = ( char * )_alloca( len2 );
+		Q_strncpy( pName2, s_ClientProxyNames[i], len2 );
+		Q_strncat( pName2, IMATERIAL_PROXY_INTERFACE_VERSION, len2, COPY_ALL_CHARACTERS );
+		return ( IMaterialProxy * )factory( pName2, NULL );
+	}
+	return NULL;
 }
 
 
