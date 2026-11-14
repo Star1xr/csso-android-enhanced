@@ -82,9 +82,10 @@ static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 #define TC_NEW_AVATAR_SIZE      36
 #define TC_NEW_AVATAR_GAP       4
 #define TC_NEW_BAR_H            4       // player colour bar under the avatar
-#define TC_NEW_CENTER_W         84
-#define TC_NEW_CENTER_GAP       6
-#define TC_NEW_PANEL_H          72      // tall enough for the timer + score boxes of the .res
+#define TC_NEW_CENTER_W         64      // timer on top, CT / T score boxes below (rounded to 2*score box + 2)
+#define TC_NEW_CENTER_GAP       4
+#define TC_NEW_PANEL_H          40      // = avatar + colour bar, the centre block has the same height
+#define TC_NEW_LOCAL_BORDER     2       // white frame around the local player's avatar
 
 // CS:GO competitive teammate colours: yellow, purple, green, blue, orange
 static const Color TC_PLAYER_COLORS[TC_NEW_SLOTS] =
@@ -120,6 +121,7 @@ public:
         virtual void ApplySchemeSettings( IScheme *pScheme );
         virtual void PerformLayout();
         virtual void PaintBackground();
+        virtual void PostChildPaint();
         virtual void Reset( void );
         virtual bool ShouldDraw();
         virtual void OnThink();
@@ -528,20 +530,45 @@ void CHudTeamCounter::LayoutNew()
         m_iAvatarSize   = ScalePx( TC_NEW_AVATAR_SIZE );
         m_iOutlineThick = ScalePx( TC_NEW_BAR_H );     // colour bar height
         int gap         = ScalePx( TC_NEW_AVATAR_GAP );
-        int centerW     = ScalePx( TC_NEW_CENTER_W );
         int centerGap   = ScalePx( TC_NEW_CENTER_GAP );
+
+        // Centre block: made of two equal score boxes + a gap, so it is always
+        // exactly symmetric whatever the resolution rounds to
+        int scoreGap    = MAX( 1, ScalePx( 2 ) );
+        int scoreW      = MAX( 1, ( ScalePx( TC_NEW_CENTER_W ) - scoreGap ) / 2 );
+        int centerW     = 2 * scoreW + scoreGap;
 
         int tileH  = m_iAvatarSize + m_iOutlineThick;
         int teamW  = TC_NEW_SLOTS * m_iAvatarSize + ( TC_NEW_SLOTS - 1 ) * gap;
         int panelW = teamW + centerGap + centerW + centerGap + teamW;
-        int panelH = MAX( ScalePx( TC_NEW_PANEL_H ), tileH );
+        int panelH = tileH;
 
         int panelX = ( ScreenWidth() - panelW ) / 2;
         int panelY = m_bIsAtTheBottom ? ( ScreenHeight() - panelH - ScalePx( 4 ) ) : ScalePx( 2 );
         SetPos( panelX, panelY );
         SetSize( panelW, panelH );
 
-        int tOriginX = teamW + centerGap + centerW + centerGap;
+        int centerX  = teamW + centerGap;
+        int tOriginX = centerX + centerW + centerGap;
+
+        // Centre block is exactly as tall as an avatar + its colour bar:
+        // timer on top, score boxes below
+        int rowGap  = MAX( 1, ScalePx( 1 ) );
+        int scoreH  = ScalePx( 18 );
+        int timerH  = tileH - scoreH - rowGap;
+        if ( timerH < 1 )
+        {
+                scoreH = MAX( 1, tileH / 2 - rowGap );
+                timerH = MAX( 1, tileH - scoreH - rowGap );
+        }
+
+        m_pRoundTimerLabel->SetBounds( centerX, 0, centerW, timerH );
+        m_pCTWinCounterLabel->SetBounds( centerX, timerH + rowGap, scoreW, scoreH );
+        m_pTWinCounterLabel->SetBounds( centerX + scoreW + scoreGap, timerH + rowGap, scoreW, scoreH );
+
+        // bomb icon keeps the size given by the .res, just centre it over the timer
+        m_pBombIcon->SetPos( centerX + ( centerW - m_pBombIcon->GetWide() ) / 2,
+                             ( timerH - m_pBombIcon->GetTall() ) / 2 );
 
         for ( int i = 0; i < TC_MAX_AVATAR_SLOTS; i++ )
         {
@@ -600,6 +627,47 @@ void CHudTeamCounter::PaintNew()
                                 bar = Color( bar.r() / 4, bar.g() / 4, bar.b() / 4, 160 );
                         pSurface->DrawSetColor( bar );
                         pSurface->DrawFilledRect( r.x, r.y + r.w, r.x + r.w, r.y + r.h );
+                }
+        }
+}
+
+
+//-----------------------------------------------------------------------------
+// PostChildPaint – white frame around the local player's avatar (avatar new),
+//                  drawn after the avatar panels so it is not painted over
+//-----------------------------------------------------------------------------
+void CHudTeamCounter::PostChildPaint()
+{
+        BaseClass::PostChildPaint();
+
+        if ( m_iStyle != TC_STYLE_AVATARS_NEW )
+                return;
+
+        vgui::ISurface *pSurface = vgui::surface();
+        if ( !pSurface )
+                return;
+
+        const int iLocal = GetLocalPlayerIndex();
+        const int t = MAX( 1, ScalePx( TC_NEW_LOCAL_BORDER ) );
+
+        pSurface->DrawSetColor( Color( 255, 255, 255, 255 ) );
+
+        for ( int team = 0; team < 2; team++ )
+        {
+                const AvatarSlot_t *pSlots = team ? m_TSlots : m_CTSlots;
+                const SlotRect_t   *pRects = team ? m_TSlotRects : m_CTSlotRects;
+                int nActive = team ? m_iNumActiveTSlots : m_iNumActiveCTSlots;
+
+                for ( int i = 0; i < nActive && i < TC_NEW_SLOTS; i++ )
+                {
+                        if ( pSlots[i].iLastPlayerIndex != iLocal )
+                                continue;
+
+                        const SlotRect_t &r = pRects[i];
+                        pSurface->DrawFilledRect( r.x,           r.y,           r.x + r.w,     r.y + t );           // top
+                        pSurface->DrawFilledRect( r.x,           r.y + r.w - t, r.x + r.w,     r.y + r.w );         // bottom
+                        pSurface->DrawFilledRect( r.x,           r.y + t,       r.x + t,       r.y + r.w - t );     // left
+                        pSurface->DrawFilledRect( r.x + r.w - t, r.y + t,       r.x + r.w,     r.y + r.w - t );     // right
                 }
         }
 }
@@ -751,7 +819,7 @@ void CHudTeamCounter::UpdateAvatarMode()
                         if ( m_CTSlots[slot].iLastPlayerIndex != playerIndex )
                         {
                                 m_CTSlots[slot].iLastPlayerIndex = playerIndex;
-                                m_CTSlots[slot].pAvatar->SetPlayer( playerIndex, k_EAvatarSize32x32 );
+                                m_CTSlots[slot].pAvatar->SetPlayer( playerIndex, ( m_iStyle == TC_STYLE_AVATARS_NEW ) ? k_EAvatarSize64x64 : k_EAvatarSize32x32 );
                         }
 
                         m_CTSlots[slot].bIsAlive = bAlive;
@@ -778,7 +846,7 @@ void CHudTeamCounter::UpdateAvatarMode()
                         if ( m_TSlots[slot].iLastPlayerIndex != playerIndex )
                         {
                                 m_TSlots[slot].iLastPlayerIndex = playerIndex;
-                                m_TSlots[slot].pAvatar->SetPlayer( playerIndex, k_EAvatarSize32x32 );
+                                m_TSlots[slot].pAvatar->SetPlayer( playerIndex, ( m_iStyle == TC_STYLE_AVATARS_NEW ) ? k_EAvatarSize64x64 : k_EAvatarSize32x32 );
                         }
 
                         m_TSlots[slot].bIsAlive = bAlive;
@@ -1002,7 +1070,10 @@ void CHudTeamCounter::UpdateRoundTimer()
                 int iMinutes = m_iRoundTime / 60;
                 int iSeconds = m_iRoundTime % 60;
 
-                V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d : %.2d", iMinutes, iSeconds );
+                if ( m_iStyle == TC_STYLE_AVATARS_NEW )
+                        V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d:%.2d", iMinutes, iSeconds );
+                else
+                        V_snwprintf( unicode, ARRAYSIZE(unicode), L"%d : %.2d", iMinutes, iSeconds );
                 m_pRoundTimerLabel->SetText( unicode );
         }
 }
