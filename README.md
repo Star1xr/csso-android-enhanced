@@ -13,7 +13,7 @@ has useless full ci build and:
 
 - [ ] Better CS:GO chat
 
-- [ ] dxvk native WIP (https://github.com/Star1xr/dxvk-native-android)
+- [ ] dxvk native (stopped the development. im tired of this shit. half complete) (https://github.com/Star1xr/dxvk-native-android)
 
 - [ ] CSM (after dxvk native) (https://github.com/celisej567/Fake-CSM-Mapbase)
 
