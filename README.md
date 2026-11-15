@@ -4,6 +4,7 @@ Ported by ndke, den4iklovelinux, cherrybtw
 Mod author: PimonFeeD
 Source engine port author: nillerusr
 1.2 Updates: PowerSiderS
+Shitty fork by: Star1xr
 
 on this shitty fork
 
