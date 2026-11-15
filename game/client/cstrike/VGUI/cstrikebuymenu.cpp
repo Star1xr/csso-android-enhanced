@@ -1031,6 +1031,21 @@ CCSBuyMenu::~CCSBuyMenu()
 	m_kvBuyMenuConfig->deleteThis();
 }
 
+// game instructor: the "buymenu_open" / "buymenu_close" lessons listen for these (ignored when the events are not defined)
+static void FireBuyMenuInstructorEvent( const char *pszName )
+{
+	C_CSPlayer *pLocal = C_CSPlayer::GetLocalCSPlayer();
+	if ( !pLocal || !gameeventmanager )
+		return;
+
+	IGameEvent *pEvent = gameeventmanager->CreateEvent( pszName );
+	if ( !pEvent )
+		return;
+
+	pEvent->SetInt( "userid", pLocal->GetUserID() );
+	gameeventmanager->FireEventClientSide( pEvent );
+}
+
 void CCSBuyMenu::ShowPanel( bool bShow )
 {
 	C_CSPlayer* pPlayer = C_CSPlayer::GetLocalCSPlayer();
@@ -1046,6 +1061,7 @@ void CCSBuyMenu::ShowPanel( bool bShow )
 
 		Activate();
 		SetMouseInputEnabled( true );
+		FireBuyMenuInstructorEvent( "buymenu_open" );
 
 		m_iBuyMenuKey = gameuifuncs->GetButtonCodeForBind( "buymenu" );
 		m_iReBuyKey = gameuifuncs->GetButtonCodeForBind( "rebuy" );
@@ -1210,6 +1226,8 @@ void CCSBuyMenu::PaintBackground()
 
 void CCSBuyMenu::OnClose()
 {
+	FireBuyMenuInstructorEvent( "buymenu_close" );
+
 	engine->ClientCmd_Unrestricted( "gameui_allowescapetoshow\n" );
 
 	CCSHudWeaponSelection* pHudWS = GET_HUDELEMENT( CCSHudWeaponSelection );
