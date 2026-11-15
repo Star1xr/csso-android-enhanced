@@ -20,3 +20,7 @@
 "csgo_hostage_lead_to_hrz"					"Lead the hostage to the rescue zone"
 "csgo_instr_rescue_zone"					"Rescue zone"
 "csgo_prevent_hostage_rescue"				"Stop the hostages from being rescued"
+
+// Mod Options > Gameplay checkbox (gameui_english.txt / csso_english.txt)
+"GameUI_Gameplay_GameInstructor"			"Enable Game Instructor"
+"GameUI_Gameplay_GameInstructor_Hint"		"Show in-game lessons and hints that teach new players."
