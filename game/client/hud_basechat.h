@@ -189,9 +189,6 @@ public:
 	virtual void	PaintBackground();
 
 private:
-	void			PaintBackgroundTextured();
-	void			PaintBackgroundGradient();
-
 	vgui::HFont		m_hChatFont;
 	int				m_nBackgroundTexture;	// vgui/chat_background, created on first paint
 };

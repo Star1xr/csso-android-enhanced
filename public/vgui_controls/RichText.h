@@ -120,6 +120,8 @@ public:
 
 	bool IsAllTextAlphaZero() const;
 	bool HasText() const;
+	// highest alpha the text is currently drawn with (0..255), mirrored from the fade in the format stream
+	int GetTextFadeAlpha() const;
 
 	void SetDrawTextOnly();
 

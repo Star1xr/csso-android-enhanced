@@ -630,13 +630,16 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 
 	SetAlpha( 255 );
 
-	// the CS:GO style background is drawn in PaintBackground()
+	// the chat background is drawn in PaintBackground()
 	SetPaintBackgroundEnabled( true );
-}
 
-// 1 = flat horizontal fade texture (materials/vgui/chat_background), 0 = old top/bottom gradient
-static ConVar cl_chat_background_style( "cl_chat_background_style", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE,
-	"Chat background style. 0 = gradient at the top and bottom edge, 1 = one flat strip behind all messages that fades out at the left and right edge." );
+	// create/bind the texture here instead of during painting
+	if ( m_nBackgroundTexture == -1 )
+	{
+		m_nBackgroundTexture = vgui::surface()->CreateNewTextureID();
+		vgui::surface()->DrawSetTextureFile( m_nBackgroundTexture, "vgui/chat_background", true, false );
+	}
+}
 
 // RichText draws its first line this many pixels below the top of the panel (DRAW_OFFSET_Y in RichText.cpp)
 #define CHAT_BG_TEXT_INSET_Y		1
@@ -644,28 +647,19 @@ static ConVar cl_chat_background_style( "cl_chat_background_style", "1", FCVAR_C
 #define CHAT_BG_LEADING_BLANK_LINES	1
 
 //-----------------------------------------------------------------------------
-// Purpose: Chat background. Its strength follows the background alpha, which
-//			CBaseHudChat::FadeChatHistory() fades with the chat.
-//-----------------------------------------------------------------------------
-void CHudChatHistory::PaintBackground()
-{
-	if ( GetBgColor().a() <= 0 )
-		return;
-
-	if ( cl_chat_background_style.GetInt() == 1 )
-		PaintBackgroundTextured();
-	else
-		PaintBackgroundGradient();
-}
-
-//-----------------------------------------------------------------------------
 // Purpose: One strip as wide as the chat that covers all message lines. The texture only
 //			changes horizontally (soft left and right edge, flat top and bottom), so the
 //			messages stacked in it look like separate bars that merge into each other,
 //			all of them with the same width and ending at the same place.
+//			It fades with the text (see RichText::GetTextFadeAlpha), so it stays behind
+//			the messages for as long as they are on screen.
 //-----------------------------------------------------------------------------
-void CHudChatHistory::PaintBackgroundTextured()
+void CHudChatHistory::PaintBackground()
 {
+	int alpha = GetTextFadeAlpha();
+	if ( alpha <= 0 )
+		return;
+
 	int lines = GetNumLines();
 	if ( lines <= 0 )
 		return;
@@ -692,7 +686,7 @@ void CHudChatHistory::PaintBackgroundTextured()
 		y1 = textBottom;
 	}
 
-	if ( y1 <= y0 )
+	if ( y1 <= y0 || wide <= 0 )
 		return;
 
 	if ( m_nBackgroundTexture == -1 )
@@ -701,44 +695,10 @@ void CHudChatHistory::PaintBackgroundTextured()
 		vgui::surface()->DrawSetTextureFile( m_nBackgroundTexture, "vgui/chat_background", true, false );
 	}
 
-	// the background alpha is 0..CHAT_HISTORY_ALPHA, the texture already has its own alpha so scale to 0..255
-	int alpha = clamp( GetBgColor().a() * 255 / CHAT_HISTORY_ALPHA, 0, 255 );
-
+	// the texture already has its own alpha, modulate it with the text fade (0..255)
 	vgui::surface()->DrawSetColor( 255, 255, 255, alpha );
 	vgui::surface()->DrawSetTexture( m_nBackgroundTexture );
 	vgui::surface()->DrawTexturedRect( 0, y0, wide, y1 );
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Old CS:GO style background, a black gradient that is strongest at the
-//			top and bottom edge and fades out towards the middle.
-//-----------------------------------------------------------------------------
-void CHudChatHistory::PaintBackgroundGradient()
-{
-	int alpha = GetBgColor().a();
-	if ( alpha <= 0 )
-		return;
-
-	int wide, tall;
-	GetSize( wide, tall );
-
-	// the base alpha is 0..CHAT_HISTORY_ALPHA (127), scale it up so the edges get dark
-	int edge = MIN( 255, alpha * 2 );
-
-	// only cover the lines that are there (plus half a line above and below), up to the whole panel
-	int lines = GetNumLines();
-	if ( lines <= 0 )
-		return;
-	int lineHeight = vgui::surface()->GetFontTall( m_hChatFont );
-	if ( lineHeight > 0 )
-		tall = MIN( tall, lines * lineHeight + lineHeight );
-
-	int half = tall / 2;
-
-	// dark at the top and bottom edge, clear in the middle where the text is
-	vgui::surface()->DrawSetColor( 0, 0, 0, 255 );
-	vgui::surface()->DrawFilledRectFade( 0, 0, wide, half, edge, 0, false );
-	vgui::surface()->DrawFilledRectFade( 0, half, wide, tall, 0, edge, false );
 }
 
 int CBaseHudChat::m_nLineCounter = 1;
