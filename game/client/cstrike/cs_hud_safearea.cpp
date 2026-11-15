@@ -14,7 +14,7 @@
 #include "cbase.h"
 #include "hud.h"
 #include "hudelement.h"
-#include "clientmode.h"
+#include "iclientmode.h"
 #include <vgui/IScheme.h>
 #include <vgui/ISurface.h>
 #include <vgui_controls/Controls.h>
@@ -103,10 +103,10 @@ void CSHudSafeArea_Update()
 	if ( nInset <= 0 && !g_pLeftContainer )
 		return;
 
-	if ( !GetClientMode() || !GetClientMode()->GetViewport() )
+	if ( !g_pClientMode || !g_pClientMode->GetViewport() )
 		return;
 
-	vgui::Panel* pViewport = GetClientMode()->GetViewport();
+	vgui::Panel* pViewport = g_pClientMode->GetViewport();
 
 	// new elements may appear later (level load), so look again when the list changes
 	if ( nInset > 0 && ( !g_pLeftContainer || g_nLastHudCount != gHUD.m_HudList.Count() ) )
