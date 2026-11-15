@@ -640,8 +640,8 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 		m_nBackgroundTexture = vgui::surface()->CreateNewTextureID();
 		vgui::surface()->DrawSetTextureFile( m_nBackgroundTexture, "vgui/chat_background", true, false );
 
-		IMaterial *pMaterial = vgui::surface()->DrawGetTextureMaterial( m_nBackgroundTexture );
-		if ( !pMaterial || IsErrorMaterial( pMaterial ) )
+		IMaterial *pMaterial = materials->FindMaterial( "vgui/chat_background", TEXTURE_GROUP_VGUI, false );
+		if ( IsErrorMaterial( pMaterial ) )
 		{
 			Warning( "chat background: vgui/chat_background not found, put chat_background.vmt/.vtf in materials/vgui/\n" );
 		}
