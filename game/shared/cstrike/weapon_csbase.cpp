@@ -49,6 +49,7 @@ extern WeaponRecoilData g_WeaponRecoilData;
 
 extern ConVar cl_righthand;
 extern ConVar sv_jump_impulse;
+extern ConVar view_recoil_tracking;
 
 ConVar weapon_accuracy_model( "weapon_accuracy_model", "2", FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY | FCVAR_ARCHIVE );
 
@@ -261,6 +262,7 @@ LINK_ENTITY_TO_CLASS( weapon_cs_base, CWeaponCSBase );
 	ConVar cl_crosshair_drawoutline( "cl_crosshair_drawoutline", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Draws a black outline around the crosshair for better visibility" );
 	ConVar cl_crosshair_outlinethickness( "cl_crosshair_outlinethickness", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Set how thick you want your crosshair outline to draw (0.1-3)", true, 0.1, true, 3 );
 	ConVar cl_crosshair_t( "cl_crosshair_t", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "T style crosshair" );
+	ConVar cl_crosshair_follow_recoil( "cl_crosshair_follow_recoil", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Moves the crosshair with the recoil pattern (like CS2), instead of keeping it in the screen centre" );
 
 	ConVar cl_crosshair_dynamic_splitdist("cl_crosshair_dynamic_splitdist", "7", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "If using cl_crosshairstyle 2, this is the distance that the crosshair pips will split into 2. (default is 7)"/*, true, 10, true, 3*/);
 	ConVar cl_crosshair_dynamic_splitalpha_innermod("cl_crosshair_dynamic_splitalpha_innermod", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "If using cl_crosshairstyle 2, this is the alpha modification that will be used for the INNER crosshair pips once they've split. [0 - 1]", true, 0, true, 1);
@@ -1613,6 +1615,24 @@ ConVar cl_cam_driver_compensation_scale( "cl_cam_driver_compensation_scale", "0.
 			}
 		}
 #endif
+
+		// Follow the recoil with the crosshair, like CS2. The camera already tracks a part of the aim
+		// punch (view_recoil_tracking); offsetting by the part the bullets drift away from the screen
+		// centre keeps the crosshair on the spot the shots actually travel to.
+		if ( cl_crosshair_follow_recoil.GetBool() && pPlayer == GetPlayerOwner() )
+		{
+			QAngle aimPunch = pPlayer->GetAimPunchAngle();
+			if ( aimPunch.x != 0.0f || aimPunch.y != 0.0f )
+			{
+				float flPunchShare = 1.0f - clamp( view_recoil_tracking.GetFloat(), 0.0f, 1.0f );
+
+				if ( flAngleToScreenPixel == 0 )
+					flAngleToScreenPixel = 0.65f * 2.0f * ( ScreenHeight() / ( 2.0f * tanf( DEG2RAD( pPlayer->GetFOV() ) / 2.0f ) ) );
+
+				iCenterY += flAngleToScreenPixel * sinf( DEG2RAD( aimPunch.x ) ) * flPunchShare;
+				iCenterX += flAngleToScreenPixel * sinf( DEG2RAD( aimPunch.y ) ) * flPunchShare;
+			}
+		}
 
 		/*
 		// Optionally subtract out viewangle since it doesn't affect shooting.
