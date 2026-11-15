@@ -17,9 +17,7 @@ has useless full ci build and:
 
 - [ ] Round buy wheel
 
-- [ ] Better CS:GO chat
-
-- [ ] Game Instructor port from CS:GO
+- [x] Better CS:GO chat
 
 - [x] HUD safe area (notch margin) on HUD options in Mod Options (0-99)
 
