@@ -764,6 +764,8 @@ void RichText::Paint()
 	// where to start drawing
 	renderState.x = _drawOffsetX + _pixelsIndent;
 	renderState.y = _drawOffsetY;
+
+	bool lineBackgroundDone = false;
 	
 	// draw the text
 	int selection0 = -1, selection1 = -1;
@@ -820,6 +822,7 @@ void RichText::Paint()
 			// add another line
 			AddAnotherLine(renderState.x, renderState.y);
 			lineBreakIndexIndex++;
+			lineBackgroundDone = false;
 
 			// Skip white space unless the previous line ended from the hard carriage return
 			if ( i && ( m_TextStream[i-1] != '\n' ) && ( m_TextStream[i-1] != '\r') )
@@ -887,6 +890,11 @@ void RichText::Paint()
 		}
 		else
 		{
+			if ( !lineBackgroundDone )
+			{
+				PaintTextLineBackground( 0, renderState.y, wide, surface()->GetFontTall( hFontCurrent ), renderState.textColor );
+				lineBackgroundDone = true;
+			}
 			renderState.x += DrawString(i, iLim - 1, renderState, hFontCurrent );
 			i = iLim;
 		}
@@ -2699,36 +2707,6 @@ void RichText::SetUnderlineFont( HFont font )
 bool RichText::IsAllTextAlphaZero() const
 {
 	return m_bAllTextAlphaIsZero;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Highest alpha the text is currently drawn with (0..255). Uses the
-//			same fade math as CalculateFade(), so a panel can draw a background
-//			that fades out together with its text.
-//-----------------------------------------------------------------------------
-int RichText::GetTextFadeAlpha() const
-{
-	// fades are held (chat open), the text is drawn at full alpha
-	if ( m_bResetFades )
-		return 255;
-
-	double now = system()->GetCurrentTime();
-	int alpha = 0;
-
-	for ( int i = 0; i < m_FormatStream.Count(); ++i )
-	{
-		const TFormatStream &item = m_FormatStream[i];
-
-		// entries without a fade length are the default/hold entries, they do not carry visible text
-		if ( item.fade.flFadeLength <= 0.0f )
-			continue;
-
-		float frac = ( item.fade.flFadeStartTime - now ) / item.fade.flFadeLength;
-		int itemAlpha = clamp( (int)( frac * item.fade.iOriginalAlpha ), 0, item.fade.iOriginalAlpha );
-		alpha = MAX( alpha, itemAlpha );
-	}
-
-	return alpha;
 }
 
 bool RichText::HasText() const

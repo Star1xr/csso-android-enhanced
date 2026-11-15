@@ -120,8 +120,6 @@ public:
 
 	bool IsAllTextAlphaZero() const;
 	bool HasText() const;
-	// highest alpha the text is currently drawn with (0..255), mirrored from the fade in the format stream
-	int GetTextFadeAlpha() const;
 
 	void SetDrawTextOnly();
 
@@ -130,6 +128,9 @@ protected:
 	virtual void PerformLayout();  // layout the text in the window
 	virtual void ApplySchemeSettings(IScheme *pScheme);
 	virtual void Paint();
+
+	// called right before the text of a line is drawn, lets derived panels paint a background that matches the line
+	virtual void PaintTextLineBackground( int x, int y, int wide, int tall, Color textColor ) {}
 
 	virtual void ApplySettings( KeyValues *inResourceData );
 	virtual void GetSettings( KeyValues *outResourceData );

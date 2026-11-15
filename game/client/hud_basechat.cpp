@@ -26,6 +26,7 @@
 #include "multiplay_gamerules.h"
 #include "tier0/icommandline.h"
 #include "c_cs_playerresource.h"
+#include "materialsystem/imaterial.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -630,63 +631,32 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 
 	SetAlpha( 255 );
 
-	// the chat background is drawn in PaintBackground()
-	SetPaintBackgroundEnabled( true );
+	// every line draws its own background strip in PaintTextLineBackground()
+	SetPaintBackgroundEnabled( false );
 
 	// create/bind the texture here instead of during painting
 	if ( m_nBackgroundTexture == -1 )
 	{
 		m_nBackgroundTexture = vgui::surface()->CreateNewTextureID();
 		vgui::surface()->DrawSetTextureFile( m_nBackgroundTexture, "vgui/chat_background", true, false );
+
+		IMaterial *pMaterial = vgui::surface()->DrawGetTextureMaterial( m_nBackgroundTexture );
+		if ( !pMaterial || IsErrorMaterial( pMaterial ) )
+		{
+			Warning( "chat background: vgui/chat_background not found, put chat_background.vmt/.vtf in materials/vgui/\n" );
+		}
 	}
 }
 
-// RichText draws its first line this many pixels below the top of the panel (DRAW_OFFSET_Y in RichText.cpp)
-#define CHAT_BG_TEXT_INSET_Y		1
-// every message is inserted as "\n" + text (see CBaseHudChatLine::Colorize), so the very first line of the history is empty
-#define CHAT_BG_LEADING_BLANK_LINES	1
-
 //-----------------------------------------------------------------------------
-// Purpose: One strip as wide as the chat that covers all message lines. The texture only
-//			changes horizontally (soft left and right edge, flat top and bottom), so the
-//			messages stacked in it look like separate bars that merge into each other,
-//			all of them with the same width and ending at the same place.
-//			It fades with the text (see RichText::GetTextFadeAlpha), so it stays behind
-//			the messages for as long as they are on screen.
+// Purpose: Background of a single chat line. RichText calls this for every line it
+//			is about to draw, with the faded color of that line, so the strip only
+//			covers the messages that are actually on screen and fades out with them.
 //-----------------------------------------------------------------------------
-void CHudChatHistory::PaintBackground()
+void CHudChatHistory::PaintTextLineBackground( int x, int y, int wide, int tall, Color textColor )
 {
-	int alpha = GetTextFadeAlpha();
-	if ( alpha <= 0 )
-		return;
-
-	int lines = GetNumLines();
-	if ( lines <= 0 )
-		return;
-
-	int lineHeight = vgui::surface()->GetFontTall( m_hChatFont );
-	if ( lineHeight <= 0 )
-		return;
-
-	int wide, tall;
-	GetSize( wide, tall );
-
-	int y0, y1;
-	int textBottom = CHAT_BG_TEXT_INSET_Y + lines * lineHeight;
-	if ( textBottom >= tall )
-	{
-		// the text fills the panel (older lines are scrolled out), so the whole panel is covered
-		y0 = 0;
-		y1 = tall;
-	}
-	else
-	{
-		// only the lines that are there, without the empty leading line
-		y0 = CHAT_BG_TEXT_INSET_Y + CHAT_BG_LEADING_BLANK_LINES * lineHeight;
-		y1 = textBottom;
-	}
-
-	if ( y1 <= y0 || wide <= 0 )
+	int alpha = textColor.a();
+	if ( alpha <= 0 || wide <= 0 || tall <= 0 )
 		return;
 
 	if ( m_nBackgroundTexture == -1 )
@@ -698,7 +668,7 @@ void CHudChatHistory::PaintBackground()
 	// the texture already has its own alpha, modulate it with the text fade (0..255)
 	vgui::surface()->DrawSetColor( 255, 255, 255, alpha );
 	vgui::surface()->DrawSetTexture( m_nBackgroundTexture );
-	vgui::surface()->DrawTexturedRect( 0, y0, wide, y1 );
+	vgui::surface()->DrawTexturedRect( x, y, x + wide, y + tall );
 }
 
 int CBaseHudChat::m_nLineCounter = 1;

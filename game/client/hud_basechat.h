@@ -186,11 +186,11 @@ public:
 	CHudChatHistory( vgui::Panel *pParent, const char *panelName );
 
 	virtual void	ApplySchemeSettings(vgui::IScheme *pScheme);
-	virtual void	PaintBackground();
+	virtual void	PaintTextLineBackground( int x, int y, int wide, int tall, Color textColor );
 
 private:
 	vgui::HFont		m_hChatFont;
-	int				m_nBackgroundTexture;	// vgui/chat_background, created on first paint
+	int				m_nBackgroundTexture;	// vgui/chat_background, created in ApplySchemeSettings
 };
 
 class CHudChatFilterButton : public vgui::Button
