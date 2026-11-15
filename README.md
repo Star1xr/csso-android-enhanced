@@ -37,7 +37,7 @@ has useless full ci build and:
 
 - [x] Key bindings (Keyboard page) are available in Options on Android too.
 
-- [x] Game instructor from CS:GO (https://github.com/SwagSoftware/Kisak-Strike) (on-screen hints like "Press B to open the Buy Menu"). Game files are in `docs/`.
+- [x] Game instructor from CS:GO ([Kisak-Strike](https://github.com/SwagSoftware/Kisak-Strike)) (on-screen hints like "Press B to open the Buy Menu"). Game files are in `docs/`.
 
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
