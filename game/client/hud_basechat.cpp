@@ -608,7 +608,7 @@ void CHudChatFilterButton::DoClick( void )
 	}
 }
 
-CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" ), m_hChatFont( 0 )
+CHudChatHistory::CHudChatHistory( vgui::Panel *pParent, const char *panelName ) : BaseClass( pParent, "HudChatHistory" ), m_hChatFont( 0 ), m_nBackgroundTexture( -1 )
 {
 	// -nocustomchat was removed: always use the CS:GO style chat (ChatScheme.res / BaseChat.res)
 	vgui::HScheme scheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), "resource/ChatScheme.res", "ChatScheme");
@@ -634,12 +634,86 @@ void CHudChatHistory::ApplySchemeSettings( vgui::IScheme *pScheme )
 	SetPaintBackgroundEnabled( true );
 }
 
+// 1 = flat horizontal fade texture (materials/vgui/chat_background), 0 = old top/bottom gradient
+static ConVar cl_chat_background_style( "cl_chat_background_style", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE,
+	"Chat background style. 0 = gradient at the top and bottom edge, 1 = one flat strip behind all messages that fades out at the left and right edge." );
+
+// RichText draws its first line this many pixels below the top of the panel (DRAW_OFFSET_Y in RichText.cpp)
+#define CHAT_BG_TEXT_INSET_Y		1
+// every message is inserted as "\n" + text (see CBaseHudChatLine::Colorize), so the very first line of the history is empty
+#define CHAT_BG_LEADING_BLANK_LINES	1
+
 //-----------------------------------------------------------------------------
-// Purpose: CS:GO style chat background, a black gradient that is strongest at the
-//			top and bottom edge and fades out towards the middle. Its strength follows the background
-//			alpha, which CBaseHudChat::FadeChatHistory() fades with the chat.
+// Purpose: Chat background. Its strength follows the background alpha, which
+//			CBaseHudChat::FadeChatHistory() fades with the chat.
 //-----------------------------------------------------------------------------
 void CHudChatHistory::PaintBackground()
+{
+	if ( GetBgColor().a() <= 0 )
+		return;
+
+	if ( cl_chat_background_style.GetInt() == 1 )
+		PaintBackgroundTextured();
+	else
+		PaintBackgroundGradient();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: One strip as wide as the chat that covers all message lines. The texture only
+//			changes horizontally (soft left and right edge, flat top and bottom), so the
+//			messages stacked in it look like separate bars that merge into each other,
+//			all of them with the same width and ending at the same place.
+//-----------------------------------------------------------------------------
+void CHudChatHistory::PaintBackgroundTextured()
+{
+	int lines = GetNumLines();
+	if ( lines <= 0 )
+		return;
+
+	int lineHeight = vgui::surface()->GetFontTall( m_hChatFont );
+	if ( lineHeight <= 0 )
+		return;
+
+	int wide, tall;
+	GetSize( wide, tall );
+
+	int y0, y1;
+	int textBottom = CHAT_BG_TEXT_INSET_Y + lines * lineHeight;
+	if ( textBottom >= tall )
+	{
+		// the text fills the panel (older lines are scrolled out), so the whole panel is covered
+		y0 = 0;
+		y1 = tall;
+	}
+	else
+	{
+		// only the lines that are there, without the empty leading line
+		y0 = CHAT_BG_TEXT_INSET_Y + CHAT_BG_LEADING_BLANK_LINES * lineHeight;
+		y1 = textBottom;
+	}
+
+	if ( y1 <= y0 )
+		return;
+
+	if ( m_nBackgroundTexture == -1 )
+	{
+		m_nBackgroundTexture = vgui::surface()->CreateNewTextureID();
+		vgui::surface()->DrawSetTextureFile( m_nBackgroundTexture, "vgui/chat_background", true, false );
+	}
+
+	// the background alpha is 0..CHAT_HISTORY_ALPHA, the texture already has its own alpha so scale to 0..255
+	int alpha = clamp( GetBgColor().a() * 255 / CHAT_HISTORY_ALPHA, 0, 255 );
+
+	vgui::surface()->DrawSetColor( 255, 255, 255, alpha );
+	vgui::surface()->DrawSetTexture( m_nBackgroundTexture );
+	vgui::surface()->DrawTexturedRect( 0, y0, wide, y1 );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Old CS:GO style background, a black gradient that is strongest at the
+//			top and bottom edge and fades out towards the middle.
+//-----------------------------------------------------------------------------
+void CHudChatHistory::PaintBackgroundGradient()
 {
 	int alpha = GetBgColor().a();
 	if ( alpha <= 0 )
