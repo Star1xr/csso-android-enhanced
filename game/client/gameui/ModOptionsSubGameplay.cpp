@@ -18,6 +18,7 @@
 #include <vgui_controls/Label.h>
 #include <vgui/ISystem.h>
 #include <vgui/ISurface.h>
+#include <vgui/ILocalize.h>
 #include <vgui_controls/ComboBox.h>
 #include "vgui_controls/QueryBox.h"
 
@@ -59,6 +60,18 @@ CModOptionsSubGameplay::CModOptionsSubGameplay( vgui::Panel *parent ): vgui::Pro
 	m_pDrawTracers = new CCvarToggleCheckButton( this, "DrawTracers", "#GameUI_Gameplay_DrawTracers", "r_drawtracers" );
 	m_pSpecInterpCamera = new CCvarToggleCheckButton( this, "SpecInterpCamera", "#GameUI_Gameplay_SpecInterpCamera", "cl_obs_interp_enable" );
 	m_pDisableShootingEffects = new CCvarToggleCheckButton( this, "DisableShootingEffects", "#GameUI_Gameplay_DisableShootingEffects", "cl_disable_shooting_effects" );
+	// The strings are normally in gameui_<language>.txt. This repo doesn't ship those, so register
+	// an English fallback when the loaded language files don't know the tokens yet.
+	if ( g_pVGuiLocalize )
+	{
+		wchar_t szGameInstructor[]     = L"Enable Game Instructor";
+		wchar_t szGameInstructorHint[] = L"Show in-game lessons and hints that teach new players.";
+		if ( !g_pVGuiLocalize->Find( "#GameUI_Gameplay_GameInstructor" ) )
+			g_pVGuiLocalize->AddString( "GameUI_Gameplay_GameInstructor", szGameInstructor, "" );
+		if ( !g_pVGuiLocalize->Find( "#GameUI_Gameplay_GameInstructor_Hint" ) )
+			g_pVGuiLocalize->AddString( "GameUI_Gameplay_GameInstructor_Hint", szGameInstructorHint, "" );
+	}
+
 	m_pGameInstructor = new CCvarToggleCheckButton( this, "GameInstructorCheckbox", "#GameUI_Gameplay_GameInstructor", "gameinstructor_enable" );
 	m_pViewmodelOffsetX = new CCvarSlider( this, "ViewmodelOffsetXSlider", "", -2.0f, 2.5f, "viewmodel_offset_x" );
 	m_pViewmodelOffsetXLabel = new Label( this, "ViewmodelOffsetXLabel", "" );
