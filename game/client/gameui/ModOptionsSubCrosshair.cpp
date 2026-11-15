@@ -116,6 +116,7 @@ private:
 	CCvarToggleCheckButton	*m_pCrosshairDrawOutline;
 	CCvarSlider				*m_pCrosshairOutlineThickness;
 	CCvarToggleCheckButton	*m_pCrosshairT;
+	CCvarToggleCheckButton	*m_pCrosshairFollowRecoil;
 	CLabeledCommandComboBox	*m_pCrosshairColor;
 	int m_iCrosshairTextureID;
 };
@@ -138,6 +139,7 @@ CrosshairImagePanelCS::CrosshairImagePanelCS( Panel *parent, const char *name, C
 	m_pCrosshairDrawOutline = new CCvarToggleCheckButton( m_pOptionsPanel, "CrosshairDrawOutline", "#GameUI_Crosshair_DrawOutline", "cl_crosshair_drawoutline" );
 	m_pCrosshairOutlineThickness = new CCvarSlider( m_pOptionsPanel, "CrosshairOutlineThickness", "#GameUI_Crosshair_OutlineThickness", 0.0f, 3.0f, "cl_crosshair_outlinethickness" );
 	m_pCrosshairT = new CCvarToggleCheckButton( m_pOptionsPanel, "CrosshairT", "#GameUI_Crosshair_T", "cl_crosshair_t" );
+	m_pCrosshairFollowRecoil = new CCvarToggleCheckButton( m_pOptionsPanel, "CrosshairFollowRecoil", "#GameUI_Crosshair_FollowRecoil", "cl_crosshair_follow_recoil" );
 	m_pCrosshairColor = new CLabeledCommandComboBox( m_pOptionsPanel, "CrosshairColor" );
 
 	//m_pCrosshairStyle->AddItem( "#GameUI_Crosshair_Style_0", "cl_crosshairstyle 0" );
@@ -168,6 +170,7 @@ CrosshairImagePanelCS::CrosshairImagePanelCS( Panel *parent, const char *name, C
 	m_pCrosshairDrawOutline->AddActionSignalTarget( this );
 	m_pCrosshairOutlineThickness->AddActionSignalTarget( this );
 	m_pCrosshairT->AddActionSignalTarget( this );
+	m_pCrosshairFollowRecoil->AddActionSignalTarget( this );
 	m_pCrosshairColor->AddActionSignalTarget( this );
 
 	m_iCrosshairTextureID = vgui::surface()->CreateNewTextureID();
@@ -335,6 +338,7 @@ void CrosshairImagePanelCS::ResetData()
 	m_pCrosshairDrawOutline->Reset();
 	m_pCrosshairOutlineThickness->Reset();
 	m_pCrosshairT->Reset();
+	m_pCrosshairFollowRecoil->Reset();
 
 	ConVarRef cl_crosshaircolor( "cl_crosshaircolor" );
 	m_pCrosshairColor->SetInitialItem( cl_crosshaircolor.GetInt() );
@@ -360,6 +364,7 @@ void CrosshairImagePanelCS::ApplyChanges()
 	m_pCrosshairDrawOutline->ApplyChanges();
 	m_pCrosshairOutlineThickness->ApplyChanges();
 	m_pCrosshairT->ApplyChanges();
+	m_pCrosshairFollowRecoil->ApplyChanges();
 	m_pCrosshairColor->ApplyChanges();
 }
 
@@ -377,6 +382,13 @@ CModOptionsSubCrosshair::CModOptionsSubCrosshair(vgui::Panel *parent) : vgui::Pr
 	Button *apply = new Button( this, "Apply", "#GameUI_Apply" );
 	apply->SetCommand( "Apply" );
 
+	// The gameui_<language>.txt files don't ship this token yet, register an English fallback.
+	if ( g_pVGuiLocalize && !g_pVGuiLocalize->Find( "#GameUI_Crosshair_FollowRecoil" ) )
+	{
+		wchar_t szFollowRecoil[] = L"Follow recoil";
+		g_pVGuiLocalize->AddString( "GameUI_Crosshair_FollowRecoil", szFollowRecoil, "" );
+	}
+
 	m_pCrosshairImage = new CrosshairImagePanelCS( this, "CrosshairImage", this );
 
 	//=========
@@ -386,6 +398,67 @@ CModOptionsSubCrosshair::CModOptionsSubCrosshair(vgui::Panel *parent) : vgui::Pr
 	// this is necessary because some of the game .res files don't have visiblity flags set up correctly for their controls
 	if ( m_pCrosshairImage )
 		m_pCrosshairImage->UpdateVisibility();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: place the follow recoil checkbox when ModOptionsSubCrosshair.res doesn't know it
+//-----------------------------------------------------------------------------
+void CModOptionsSubCrosshair::PerformLayout()
+{
+	BaseClass::PerformLayout();
+
+	CCvarToggleCheckButton *pFollowRecoil = dynamic_cast<CCvarToggleCheckButton *>( FindChildByName( "CrosshairFollowRecoil" ) );
+	if ( !pFollowRecoil )
+		return;
+
+	int placedX, placedY;
+	pFollowRecoil->GetPos( placedX, placedY );
+	if ( placedX != 0 || placedY != 0 )
+		return;		// the .res file places it, leave it there
+
+	// older .res files don't know the control, put it below the last crosshair option
+	Panel *pAnchor = FindChildByName( "CrosshairT" );
+	if ( !pAnchor )
+		pAnchor = FindChildByName( "CrosshairDrawOutline" );
+	if ( !pAnchor )
+		pAnchor = FindChildByName( "CrosshairDot" );
+	if ( !pAnchor )
+		pAnchor = FindChildByName( "CrosshairGapUseWeaponValue" );
+	if ( !pAnchor )
+		return;
+
+	int anchorX, anchorY, anchorWide, anchorTall;
+	pAnchor->GetBounds( anchorX, anchorY, anchorWide, anchorTall );
+	if ( anchorWide <= 0 || anchorTall <= 0 )
+		return;
+
+	int gap = MAX( 2, anchorTall / 4 );
+	int rowY = anchorY + anchorTall + gap;
+
+	// don't run into the page buttons at the bottom
+	int buttonTop = GetTall();
+	for ( int i = 0; i < GetChildCount(); i++ )
+	{
+		Panel *pChild = GetChild( i );
+		if ( !pChild )
+			continue;
+
+		const char *pszName = pChild->GetName();
+		if ( !pszName )
+			continue;
+
+		if ( !Q_stricmp( pszName, "OK" ) || !Q_stricmp( pszName, "Cancel" ) || !Q_stricmp( pszName, "Apply" ) )
+		{
+			int buttonX, buttonY, buttonWide, buttonTall;
+			pChild->GetBounds( buttonX, buttonY, buttonWide, buttonTall );
+			buttonTop = MIN( buttonTop, buttonY );
+		}
+	}
+
+	if ( rowY + anchorTall > buttonTop - gap )
+		rowY = MAX( 0, buttonTop - gap - anchorTall );
+
+	pFollowRecoil->SetBounds( anchorX, rowY, anchorWide, anchorTall );
 }
 
 //-----------------------------------------------------------------------------
