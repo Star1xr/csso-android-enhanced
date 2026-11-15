@@ -57,6 +57,8 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pHUDColor = new CLabeledCommandComboBox( this, "HUDColorComboBox" );
 	m_pHUDBackgroundAlpha = new CCvarSlider( this, "HUDBackgroundAlphaSlider", "", 0.0f, 1.0f, "cl_hud_background_alpha" );
 	m_pRadarScale = new CCvarSlider( this, "RadarScaleSlider", "", 0.25f, 1.0f, "cl_radar_scale" );
+	m_pHUDSafeArea = new CCvarSlider( this, "HUDSafeAreaSlider", "", 0.0f, 50.0f, "cl_hud_safearea" );
+	m_pHUDSafeAreaLabel = new Label( this, "HUDSafeAreaLabel", "HUD margin (0 - 50, notch)" );
 	m_pAlwaysShowInventory = new CCvarToggleCheckButton( this, "AlwaysShowInventoryCheckbox", "#GameUI_HUD_AlwaysShowInventory", "cl_showloadout" );
 	m_pRadarRotate = new CCvarToggleCheckButton( this, "RadarRotateCheckbox", "#GameUI_HUD_RotateRadar", "cl_radar_rotate" );
 	m_pHeadName = new CCvarToggleCheckButton( this, "HeadNameCheckbox", "Head names (teammates)", "cl_headname" );
@@ -117,6 +119,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pHUDColor->AddActionSignalTarget( this );
 	m_pHUDBackgroundAlpha->AddActionSignalTarget( this );
 	m_pRadarScale->AddActionSignalTarget( this );
+	m_pHUDSafeArea->AddActionSignalTarget( this );
 	m_pAlwaysShowInventory->AddActionSignalTarget( this );
 	m_pRadarRotate->AddActionSignalTarget( this );
 	m_pHeadName->AddActionSignalTarget( this );
@@ -131,6 +134,11 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	int csX, csY, csW, csT;
 	m_pTeamCounterStyle->GetBounds( csX, csY, csW, csT );
 	m_bAutoPlaceStyle = ( csX == 0 && csY == 0 );
+
+	// same for the HUD margin slider ("HUDSafeAreaSlider" / "HUDSafeAreaLabel" in the .res place it by hand)
+	int saX, saY, saW, saT;
+	m_pHUDSafeArea->GetBounds( saX, saY, saW, saT );
+	m_bAutoPlaceSafeArea = ( saX == 0 && saY == 0 );
 
 	m_pTeamCounterStyleLabel = NULL;
 	if ( m_bAutoPlaceStyle )
@@ -148,7 +156,7 @@ void CModOptionsSubHUD::PerformLayout()
 {
 	BaseClass::PerformLayout();
 
-	if ( !m_bAutoPlaceStyle )
+	if ( !m_bAutoPlaceStyle && !m_bAutoPlaceSafeArea )
 		return;
 
 	int px, py, pw, pt;
@@ -161,7 +169,12 @@ void CModOptionsSubHUD::PerformLayout()
 	for ( int i = 0; i < GetChildCount(); i++ )
 	{
 		Panel *pChild = GetChild( i );
-		if ( !pChild || pChild == m_pTeamCounterStyle || pChild == m_pTeamCounterStyleLabel )
+		if ( !pChild )
+			continue;
+
+		// controls we place ourselves are not part of the existing layout
+		if ( ( m_bAutoPlaceStyle && ( pChild == m_pTeamCounterStyle || pChild == m_pTeamCounterStyleLabel ) ) ||
+			 ( m_bAutoPlaceSafeArea && ( pChild == m_pHUDSafeArea || pChild == m_pHUDSafeAreaLabel ) ) )
 			continue;
 
 		int cx, cy, cw, ct;
@@ -182,20 +195,32 @@ void CModOptionsSubHUD::PerformLayout()
 
 	int gap = MAX( 2, pt / 4 );
 	int y = bottom + gap;
-	if ( y + pt > buttonTop - gap )
-		y = MAX( 0, buttonTop - gap - pt );
 
-	m_pTeamCounterStyle->SetBounds( px, y, pw, pt );
-
-	if ( m_pTeamCounterStyleLabel )
+	auto PlaceRow = [&]( Panel *pControl, Label *pCaption )
 	{
-		int lx = px, lw = 0, ly, lt;
-		if ( pTemplate )
-			pTemplate->GetBounds( lx, ly, lw, lt );
-		m_pTeamCounterStyleLabel->SetBounds( lx, y, MAX( lw, 1 ), pt );
-		if ( pTemplate )
-			m_pTeamCounterStyleLabel->SetFont( pTemplate->GetFont() );
-	}
+		int rowY = y;
+		if ( rowY + pt > buttonTop - gap )
+			rowY = MAX( 0, buttonTop - gap - pt );
+
+		pControl->SetBounds( px, rowY, pw, pt );
+
+		if ( pCaption )
+		{
+			int lx = px, lw = 0, ly, lt;
+			if ( pTemplate )
+				pTemplate->GetBounds( lx, ly, lw, lt );
+			pCaption->SetBounds( lx, rowY, MAX( lw, 1 ), pt );
+			if ( pTemplate )
+				pCaption->SetFont( pTemplate->GetFont() );
+		}
+
+		y = rowY + pt + gap;
+	};
+
+	if ( m_bAutoPlaceStyle )
+		PlaceRow( m_pTeamCounterStyle, m_pTeamCounterStyleLabel );
+	if ( m_bAutoPlaceSafeArea )
+		PlaceRow( m_pHUDSafeArea, m_pHUDSafeAreaLabel );
 }
 
 //-----------------------------------------------------------------------------
@@ -249,6 +274,7 @@ void CModOptionsSubHUD::OnResetData()
 
 	m_pHUDBackgroundAlpha->Reset();
 	m_pRadarScale->Reset();
+	m_pHUDSafeArea->Reset();
 	m_pAlwaysShowInventory->Reset();
 	m_pRadarRotate->Reset();
 	m_pHeadName->Reset();
@@ -265,6 +291,7 @@ void CModOptionsSubHUD::OnApplyChanges()
 	m_pHUDColor->ApplyChanges();
 	m_pHUDBackgroundAlpha->ApplyChanges();
 	m_pRadarScale->ApplyChanges();
+	m_pHUDSafeArea->ApplyChanges();
 	m_pAlwaysShowInventory->ApplyChanges();
 	m_pRadarRotate->ApplyChanges();
 	m_pHeadName->ApplyChanges();

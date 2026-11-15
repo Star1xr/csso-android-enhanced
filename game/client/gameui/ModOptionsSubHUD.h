@@ -45,6 +45,9 @@ private:
 	CLabeledCommandComboBox*	m_pTeamCounterStyle;
 	vgui::Label*				m_pTeamCounterStyleLabel;
 	bool						m_bAutoPlaceStyle;
+	CCvarSlider*				m_pHUDSafeArea;
+	vgui::Label*				m_pHUDSafeAreaLabel;
+	bool						m_bAutoPlaceSafeArea;
 	CLabeledCommandComboBox*	m_pHealthAmmoStyle;
 	CLabeledCommandComboBox*	m_pHUDColor;
 	CCvarSlider*				m_pHUDBackgroundAlpha;

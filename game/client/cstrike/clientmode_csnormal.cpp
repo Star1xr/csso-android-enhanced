@@ -370,9 +370,13 @@ void ClientModeCSNormal::LevelShutdown( void )
 }
 
 
+void CSHudSafeArea_Update();
+
 void ClientModeCSNormal::Update()
 {
 	BaseClass::Update();
+
+	CSHudSafeArea_Update();
 
 	// Override the hud's visibility if this is a logo (like E3 demo) map.
 	if ( CSGameRules() && CSGameRules()->IsLogoMap() )
