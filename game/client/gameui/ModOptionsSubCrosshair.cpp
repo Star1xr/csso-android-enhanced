@@ -411,7 +411,12 @@ void CModOptionsSubCrosshair::PerformLayout()
 	if ( !pFollowRecoil )
 		return;
 
-	// put it below the last crosshair option, the .res is fixed and doesn't have a slot for it
+	int placedX, placedY;
+	pFollowRecoil->GetPos( placedX, placedY );
+	if ( placedX != 0 || placedY != 0 )
+		return;		// the .res file places it, leave it there
+
+	// older .res files don't know the control, put it below the last crosshair option
 	Panel *pAnchor = FindChildByName( "CrosshairT" );
 	if ( !pAnchor )
 		pAnchor = FindChildByName( "CrosshairDrawOutline" );
