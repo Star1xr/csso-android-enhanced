@@ -23,7 +23,7 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-ConVar cl_hud_safearea( "cl_hud_safearea", "0", FCVAR_ARCHIVE, "HUD margin towards the screen centre on both sides, 0 - 50 (1080p units). Not used by menus.", true, 0, true, 50 );
+ConVar cl_hud_safearea( "cl_hud_safearea", "0", FCVAR_ARCHIVE, "HUD margin towards the screen centre on both sides, 0 - 99 (1080p units). Not used by menus.", true, 0, true, 99 );
 
 namespace
 {
@@ -82,6 +82,15 @@ static void HudSafeArea_Sort( vgui::Panel* pViewport )
 			continue;		// not laid out yet, try again later
 
 		g_Handled.AddToTail( pPanel );
+
+		// The kill feed and the weapon list ("inventory") are full width panels that draw at their right
+		// edge: they move with the right side.
+		const char* pszName = gHUD.m_HudList[i]->GetName();
+		if ( pszName && ( Q_stristr( pszName, "DeathNotice" ) || Q_stristr( pszName, "WeaponSelection" ) ) )
+		{
+			pPanel->SetParent( g_pRightContainer );
+			continue;
+		}
 
 		// wide elements (full screen overlays, the round timer block, ...) stay
 		if ( w >= sw / 2 )

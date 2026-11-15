@@ -13,6 +13,7 @@
 
 #include <vgui_controls/PropertyPage.h>
 #include <vgui_controls/Label.h>
+#include <vgui_controls/TextEntry.h>
 
 class CLabeledCommandComboBox;
 class CCvarSlider;
@@ -32,6 +33,7 @@ public:
 	~CModOptionsSubHUD();
 
 	MESSAGE_FUNC( OnControlModified, "ControlModified" );
+	MESSAGE_FUNC_PTR( OnTextChanged, "TextChanged", panel );
 
 protected:
 	virtual void PerformLayout();
@@ -46,6 +48,11 @@ private:
 	vgui::Label*				m_pTeamCounterStyleLabel;
 	bool						m_bAutoPlaceStyle;
 	CCvarSlider*				m_pHUDSafeArea;
+	vgui::TextEntry*			m_pHUDSafeAreaEntry;
+	bool						m_bUpdatingSafeArea;
+	bool						m_bEntryPlaced;
+	void						PlaceSafeAreaEntry();
+	void						SyncSafeAreaEntry();
 	vgui::Label*				m_pHUDSafeAreaLabel;
 	bool						m_bAutoPlaceSafeArea;
 	CLabeledCommandComboBox*	m_pHealthAmmoStyle;

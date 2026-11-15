@@ -57,8 +57,14 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pHUDColor = new CLabeledCommandComboBox( this, "HUDColorComboBox" );
 	m_pHUDBackgroundAlpha = new CCvarSlider( this, "HUDBackgroundAlphaSlider", "", 0.0f, 1.0f, "cl_hud_background_alpha" );
 	m_pRadarScale = new CCvarSlider( this, "RadarScaleSlider", "", 0.25f, 1.0f, "cl_radar_scale" );
-	m_pHUDSafeArea = new CCvarSlider( this, "HUDSafeAreaSlider", "", 0.0f, 50.0f, "cl_hud_safearea" );
-	m_pHUDSafeAreaLabel = new Label( this, "HUDSafeAreaLabel", "HUD margin (0 - 50, notch)" );
+	m_pHUDSafeArea = new CCvarSlider( this, "HUDSafeAreaSlider", "", 0.0f, 99.0f, "cl_hud_safearea" );
+	m_pHUDSafeAreaLabel = new Label( this, "HUDSafeAreaLabel", "HUD margin (0 - 99)" );
+	m_pHUDSafeAreaEntry = new TextEntry( this, "HUDSafeAreaEntry" );
+	m_pHUDSafeAreaEntry->SetAllowNumericInputOnly( true );
+	m_pHUDSafeAreaEntry->SetMaximumCharCount( 2 );
+	m_pHUDSafeAreaEntry->AddActionSignalTarget( this );
+	m_bUpdatingSafeArea = false;
+	m_bEntryPlaced = false;
 	m_pAlwaysShowInventory = new CCvarToggleCheckButton( this, "AlwaysShowInventoryCheckbox", "#GameUI_HUD_AlwaysShowInventory", "cl_showloadout" );
 	m_pRadarRotate = new CCvarToggleCheckButton( this, "RadarRotateCheckbox", "#GameUI_HUD_RotateRadar", "cl_radar_rotate" );
 	m_pHeadName = new CCvarToggleCheckButton( this, "HeadNameCheckbox", "Head names (teammates)", "cl_headname" );
@@ -139,6 +145,8 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	int saX, saY, saW, saT;
 	m_pHUDSafeArea->GetBounds( saX, saY, saW, saT );
 	m_bAutoPlaceSafeArea = ( saX == 0 && saY == 0 );
+	m_pHUDSafeAreaEntry->SetZPos( 1 );
+	SyncSafeAreaEntry();
 
 	m_pTeamCounterStyleLabel = NULL;
 	if ( m_bAutoPlaceStyle )
@@ -157,7 +165,10 @@ void CModOptionsSubHUD::PerformLayout()
 	BaseClass::PerformLayout();
 
 	if ( !m_bAutoPlaceStyle && !m_bAutoPlaceSafeArea )
+	{
+		PlaceSafeAreaEntry();
 		return;
+	}
 
 	int px, py, pw, pt;
 	m_pPlayerCountPos->GetBounds( px, py, pw, pt );
@@ -221,6 +232,28 @@ void CModOptionsSubHUD::PerformLayout()
 		PlaceRow( m_pTeamCounterStyle, m_pTeamCounterStyleLabel );
 	if ( m_bAutoPlaceSafeArea )
 		PlaceRow( m_pHUDSafeArea, m_pHUDSafeAreaLabel );
+
+	PlaceSafeAreaEntry();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: the margin can also be typed: the entry sits at the right end of the slider
+//-----------------------------------------------------------------------------
+void CModOptionsSubHUD::PlaceSafeAreaEntry()
+{
+	int ex, ey, ew, et;
+	m_pHUDSafeArea->GetBounds( ex, ey, ew, et );
+	if ( ew <= 0 )
+		return;
+
+	int entryW = MIN( 48, ew / 4 );
+	if ( !m_bEntryPlaced )
+	{
+		m_bEntryPlaced = true;
+		m_pHUDSafeArea->SetSize( ew - entryW - 8, et );
+		ew = ew - entryW - 8;
+	}
+	m_pHUDSafeAreaEntry->SetBounds( ex + ew + 8, ey, entryW, et );
 }
 
 //-----------------------------------------------------------------------------
@@ -233,8 +266,39 @@ CModOptionsSubHUD::~CModOptionsSubHUD()
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+void CModOptionsSubHUD::SyncSafeAreaEntry()
+{
+	m_bUpdatingSafeArea = true;
+	char sz[8];
+	Q_snprintf( sz, sizeof( sz ), "%d", (int)( m_pHUDSafeArea->GetSliderValue() + 0.5f ) );
+	m_pHUDSafeAreaEntry->SetText( sz );
+	m_bUpdatingSafeArea = false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: typed margin -> slider
+//-----------------------------------------------------------------------------
+void CModOptionsSubHUD::OnTextChanged( Panel *panel )
+{
+	if ( panel != m_pHUDSafeAreaEntry || m_bUpdatingSafeArea )
+		return;
+
+	char sz[8];
+	m_pHUDSafeAreaEntry->GetText( sz, sizeof( sz ) );
+	if ( !sz[0] )
+		return;
+
+	int v = clamp( atoi( sz ), 0, 99 );
+	m_pHUDSafeArea->SetSliderValue( (float)v );
+	PostMessage( GetParent(), new KeyValues( "ApplyButtonEnable" ) );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 void CModOptionsSubHUD::OnControlModified()
 {
+	SyncSafeAreaEntry();
 	PostMessage( GetParent(), new KeyValues( "ApplyButtonEnable" ) );
 	InvalidateLayout();
 }
@@ -275,6 +339,7 @@ void CModOptionsSubHUD::OnResetData()
 	m_pHUDBackgroundAlpha->Reset();
 	m_pRadarScale->Reset();
 	m_pHUDSafeArea->Reset();
+	SyncSafeAreaEntry();
 	m_pAlwaysShowInventory->Reset();
 	m_pRadarRotate->Reset();
 	m_pHeadName->Reset();
