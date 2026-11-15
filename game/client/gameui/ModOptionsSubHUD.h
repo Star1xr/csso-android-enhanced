@@ -47,11 +47,8 @@ private:
 	CLabeledCommandComboBox*	m_pTeamCounterStyle;
 	vgui::Label*				m_pTeamCounterStyleLabel;
 	bool						m_bAutoPlaceStyle;
-	CCvarSlider*				m_pHUDSafeArea;
 	vgui::TextEntry*			m_pHUDSafeAreaEntry;
 	bool						m_bUpdatingSafeArea;
-	bool						m_bEntryPlaced;
-	void						PlaceSafeAreaEntry();
 	void						SyncSafeAreaEntry();
 	vgui::Label*				m_pHUDSafeAreaLabel;
 	bool						m_bAutoPlaceSafeArea;
