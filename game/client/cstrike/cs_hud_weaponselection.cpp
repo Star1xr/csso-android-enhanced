@@ -501,6 +501,9 @@ void CCSHudWeaponSelection::UpdatePanelPositions( void )
 				int nNameLabelWide, nNameLabelTall;
 				m_weaponPanels[i][j].pNameLabel->GetSize( nNameLabelWide, nNameLabelTall );
 
+				// only the rightmost icon of a slot (the first one we lay out) carries the slot number
+				bool bFirstIconOfSlot = bFirstTime || ( m_nPrevWepAlignSlot != nSlot );
+
 				if ( bFirstTime )
 				{
 					nXPos = GetWide() - icons_base_xpos - nIconWide;
@@ -549,11 +552,17 @@ void CCSHudWeaponSelection::UpdatePanelPositions( void )
 				{
 					int nNumberWide = m_weaponPanels[i][j].pNumberLabel->GetWide();
 					m_weaponPanels[i][j].pNumberLabel->SetPos( nXPos + nIconWide - nNumberWide + number_label_xpos, nYPos + number_label_ypos );
+					m_weaponPanels[i][j].pNumberLabel->SetVisible( bFirstIconOfSlot );
 				}
 				if ( bShowCountNumber )
 					m_weaponPanels[i][j].pCountLabel->SetPos( nXPos + count_label_xpos, nYPos + count_label_ypos );
 
 				m_nPrevWepAlignSlot = nSlot;
+			}
+			else if ( m_weaponPanels[i][j].pNumberLabel )
+			{
+				// the icon isn't drawn this frame, don't leave a stale slot number behind
+				m_weaponPanels[i][j].pNumberLabel->SetVisible( false );
 			}
 		}
 	}

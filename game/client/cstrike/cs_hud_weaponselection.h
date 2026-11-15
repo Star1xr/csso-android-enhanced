@@ -97,7 +97,7 @@ private:
 	CPanelAnimationVarAliasType( int, icons_base_ypos, "icons_base_ypos", "0", "proportional_ypos" );
 	CPanelAnimationVarAliasType( int, name_label_xpos, "name_label_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, name_label_ypos, "name_label_ypos", "0", "proportional_ypos" );
-	CPanelAnimationVarAliasType( int, number_label_xpos, "number_label_xpos", "7", "proportional_xpos" );
+	CPanelAnimationVarAliasType( int, number_label_xpos, "number_label_xpos", "10", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, number_label_ypos, "number_label_ypos", "0", "proportional_ypos" );
 
 	CPanelAnimationVarAliasType( int, count_label_xpos, "count_label_xpos", "0", "proportional_xpos" );
