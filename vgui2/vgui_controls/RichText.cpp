@@ -892,7 +892,8 @@ void RichText::Paint()
 		{
 			if ( !lineBackgroundDone )
 			{
-				PaintTextLineBackground( 0, renderState.y, wide, surface()->GetFontTall( hFontCurrent ), renderState.textColor );
+				// the height includes the line spacing, so consecutive line backgrounds touch instead of leaving a gap
+				PaintTextLineBackground( 0, renderState.y, wide, surface()->GetFontTall( hFontCurrent ) + _drawOffsetY, renderState.textColor );
 				lineBackgroundDone = true;
 			}
 			renderState.x += DrawString(i, iLim - 1, renderState, hFontCurrent );

@@ -130,6 +130,7 @@ protected:
 	virtual void Paint();
 
 	// called right before the text of a line is drawn, lets derived panels paint a background that matches the line
+	// (the height includes the line spacing, so consecutive line backgrounds touch each other)
 	virtual void PaintTextLineBackground( int x, int y, int wide, int tall, Color textColor ) {}
 
 	virtual void ApplySettings( KeyValues *inResourceData );
