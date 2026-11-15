@@ -157,6 +157,39 @@ static vgui::HFont LocatorPickFont( vgui::IScheme *pScheme, vgui::HFont hCurrent
 	return hCurrent;
 }
 
+// Instructor text uses resource/stratum2-bold.ttf. It is registered under our own family name, so this does not
+// depend on what name is stored inside the ttf.
+#define LOCATOR_FONT_FAMILY	"Stratum2InstructorBold"
+#define LOCATOR_FONT_FILE	"resource/stratum2-bold.ttf"
+
+static bool LocatorRegisterCustomFont( void )
+{
+	static int s_nState = 0; // 0 = not tried yet, 1 = loaded, -1 = failed
+	if ( s_nState == 0 )
+	{
+		s_nState = vgui::surface()->AddCustomFontFile( LOCATOR_FONT_FAMILY, LOCATOR_FONT_FILE ) ? 1 : -1;
+	}
+	return s_nState > 0;
+}
+
+// Creates a Stratum2 Bold font with the same height as hLike (the font the scheme/fallback picked, so layout keeps working).
+// Returns hLike untouched when the ttf can't be loaded.
+static vgui::HFont LocatorCreateCustomFont( vgui::HFont hLike )
+{
+	if ( hLike == 0 || !LocatorRegisterCustomFont() )
+		return hLike;
+
+	int nTall = vgui::surface()->GetFontTall( hLike );
+	if ( nTall <= 0 )
+		return hLike;
+
+	vgui::HFont hFont = vgui::surface()->CreateFont();
+	if ( !vgui::surface()->SetFontGlyphSet( hFont, LOCATOR_FONT_FAMILY, nTall, 500, 0, 0, vgui::ISurface::FONTFLAG_ANTIALIAS ) )
+		return hLike;
+
+	return hFont;
+}
+
 // Panel::LookupElementBounds() does not exist in CSSO: find the child by name, return bounds local to pPanel
 static bool LocatorLookupElementBounds( vgui::Panel *pPanel, const char *pchName, int &x, int &y, int &wide, int &tall )
 {
@@ -981,6 +1014,15 @@ void CLocatorPanel::ApplySchemeSettings( vgui::IScheme *pScheme )
 	m_hKeysFont         = LocatorPickFont( pScheme, m_hKeysFont,         bProp, s_Keys );
 	m_hKeysFontSmall    = LocatorPickFont( pScheme, m_hKeysFontSmall,    bProp, s_KeysSmall );
 	m_hButtonFontSC     = LocatorPickFont( pScheme, m_hButtonFontSC,     bProp, s_Button );
+
+	// Replace all of them with Stratum2 Bold (same sizes as the fonts picked above)
+	m_hCaptionFont      = LocatorCreateCustomFont( m_hCaptionFont );
+	m_hCaptionFont_ss   = LocatorCreateCustomFont( m_hCaptionFont_ss );
+	m_hButtonFont       = LocatorCreateCustomFont( m_hButtonFont );
+	m_hButtonFont_ss    = LocatorCreateCustomFont( m_hButtonFont_ss );
+	m_hKeysFont         = LocatorCreateCustomFont( m_hKeysFont );
+	m_hKeysFontSmall    = LocatorCreateCustomFont( m_hKeysFontSmall );
+	m_hButtonFontSC     = LocatorCreateCustomFont( m_hButtonFontSC );
 }
 
 //-----------------------------------------------------------------------------
