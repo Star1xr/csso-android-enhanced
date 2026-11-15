@@ -79,12 +79,12 @@ static ConVarRef mp_freezetime_ref( "mp_freezetime" );
 // "Avatar new" style (must match resource/hud/teamcounter_avatars_new.res, 1080p units):
 // 5 players per team in ONE row, a team-coloured bar under every avatar, no outline box.
 #define TC_NEW_SLOTS            5
-#define TC_NEW_AVATAR_SIZE      36
+#define TC_NEW_AVATAR_SIZE      67      // avatar + colour bar = 71 = height of the centre block
 #define TC_NEW_AVATAR_GAP       4
 #define TC_NEW_BAR_H            4       // team colour bar under the avatar
-#define TC_NEW_CENTER_W         64      // timer on top, CT / T score boxes below (rounded to 2*score box + 2)
+#define TC_NEW_CENTER_W         84      // same as the other styles: timer 84x37 on top, CT / T score boxes 41x31 below
 #define TC_NEW_CENTER_GAP       4
-#define TC_NEW_PANEL_H          40      // = avatar + colour bar, the centre block has the same height
+#define TC_NEW_PANEL_H          71      // = avatar + colour bar = timer 37 + gap 3 + score boxes 31
 #define TC_NEW_LOCAL_BORDER     2       // white frame around the local player's avatar
 
 // "Avatar new" colour bar under each avatar, by team
@@ -545,10 +545,10 @@ void CHudTeamCounter::LayoutNew()
         int centerX  = teamW + centerGap;
         int tOriginX = centerX + centerW + centerGap;
 
-        // Centre block is exactly as tall as an avatar + its colour bar:
-        // timer on top, score boxes below
-        int rowGap  = MAX( 1, ScalePx( 1 ) );
-        int scoreH  = ScalePx( 18 );
+        // Centre block is exactly as tall as an avatar + its colour bar (71):
+        // timer 37 on top, gap 3, score boxes 31 below, same sizes as the other styles
+        int rowGap  = MAX( 1, ScalePx( 3 ) );
+        int scoreH  = ScalePx( 31 );
         int timerH  = tileH - scoreH - rowGap;
         if ( timerH < 1 )
         {
