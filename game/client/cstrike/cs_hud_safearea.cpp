@@ -51,6 +51,10 @@ namespace
 	int g_nLastHudCount = -1;
 	int g_nLastScreenW = 0;
 	int g_nLastScreenH = 0;
+
+	// some panels (the chat, for one) are still unsized when the first sort runs, so keep
+	// sorting until every element has real bounds
+	bool g_bPendingLayout = false;
 }
 
 static void HudSafeArea_Sort( vgui::Panel* pViewport )
@@ -66,6 +70,8 @@ static void HudSafeArea_Sort( vgui::Panel* pViewport )
 		g_pRightContainer = new CHudSafeAreaContainer( pViewport, "HudSafeAreaRight" );
 	}
 
+	g_bPendingLayout = false;
+
 	FOR_EACH_VEC( gHUD.m_HudList, i )
 	{
 		vgui::Panel* pPanel = dynamic_cast<vgui::Panel*>( gHUD.m_HudList[i] );
@@ -79,7 +85,11 @@ static void HudSafeArea_Sort( vgui::Panel* pViewport )
 		int x, y, w, h;
 		pPanel->GetBounds( x, y, w, h );
 		if ( w <= 0 || h <= 0 )
-			continue;		// not laid out yet, try again later
+		{
+			if ( pPanel->IsVisible() )
+				g_bPendingLayout = true;	// not laid out yet, try again next frame
+			continue;
+		}
 
 		g_Handled.AddToTail( pPanel );
 
@@ -89,6 +99,14 @@ static void HudSafeArea_Sort( vgui::Panel* pViewport )
 		if ( pszName && ( Q_stristr( pszName, "DeathNotice" ) || Q_stristr( pszName, "WeaponSelection" ) ) )
 		{
 			pPanel->SetParent( g_pRightContainer );
+			continue;
+		}
+
+		// Chat lives in the lower left corner and is a popup: keep it on the left side even if its
+		// bounds are not what the generic rules expect
+		if ( pszName && Q_stristr( pszName, "HudChat" ) )
+		{
+			pPanel->SetParent( g_pLeftContainer );
 			continue;
 		}
 
@@ -117,8 +135,9 @@ void CSHudSafeArea_Update()
 
 	vgui::Panel* pViewport = g_pClientMode->GetViewport();
 
-	// new elements may appear later (level load), so look again when the list changes
-	if ( nInset > 0 && ( !g_pLeftContainer || g_nLastHudCount != gHUD.m_HudList.Count() ) )
+	// new elements may appear later (level load), and panels that were still unsized during the
+	// first pass keep the pending flag set until they are laid out
+	if ( nInset > 0 && ( !g_pLeftContainer || g_nLastHudCount != gHUD.m_HudList.Count() || g_bPendingLayout ) )
 	{
 		g_nLastHudCount = gHUD.m_HudList.Count();
 		HudSafeArea_Sort( pViewport );
