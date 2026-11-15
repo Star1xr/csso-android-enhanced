@@ -19,6 +19,8 @@ has useless full ci build and:
 
 - [ ] Better CS:GO chat
 
+- [x] HUD safe area (notch margin) on HUD options in Mod Options (0-99)
+
 - [x] New teamcounter style like csgo
 
 - [x] Better headname like CS:GO from 1.3-update by @FJH03 from repo [CSSO-NOOFFICIAL-MP](https://github.com/FJH03/CSSO-NOOFFICIAL-MP/)
