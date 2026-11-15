@@ -18,7 +18,7 @@ has useless full ci build and:
 
 - [ ] Round buy wheel
 
-- [ ] Crosshair follow recoil option (like CS2)
+- [x] Crosshair follow recoil option (like CS2)
 
 - [x] Each weapon icon in the HUD weapon list (bottom right inventory) now carries a small number on its top-right corner like CS:GO and CS:SO 2.0
 
