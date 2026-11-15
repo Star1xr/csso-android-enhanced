@@ -18,6 +18,8 @@
 #include "saverestoretypes.h"
 
 #include "cs_gamerules.h"
+#include <vgui/ILocalize.h>
+#include <vgui_controls/Controls.h>
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -126,6 +128,57 @@ void GameInstructor_Shutdown()
 // C_GameInstructor
 //
 
+//-----------------------------------------------------------------------------
+// Purpose: Registers the English text of the lesson captions so no language
+//          file has to be edited. A token already defined by a language file
+//          (e.g. csso_english.txt) is left untouched.
+//-----------------------------------------------------------------------------
+static void GameInstructor_RegisterEnglishTokens( void )
+{
+	struct InstructorToken_t
+	{
+		const char *pszToken;
+		const char *pszText;
+	};
+
+	static const InstructorToken_t s_Tokens[] =
+	{
+		{ "csgo_instr_explain_buymenu",				"Press %buymenu% to open the Buy Menu" },
+		{ "csgo_instr_explain_buyarmor",			"Pro tip: buy armor!" },
+		{ "csgo_instr_explain_plant_bomb",			"Hold %+use% to plant the bomb" },
+		{ "csgo_instr_explain_bomb_carrier",		"You have the bomb!" },
+		{ "csgo_instr_nav_bomb_siteA",				"Bomb Site A" },
+		{ "csgo_instr_nav_bomb_siteB",				"Bomb Site B" },
+		{ "csgo_instr_defuse_planted_bomb",			"Hold %+use% to defuse the bomb" },
+		{ "csgo_instr_find_planted_bomb",			"Find and defuse the bomb!" },
+		{ "csgo_instr_explain_follow_bomber",		"Defend the bomb carrier" },
+		{ "csgo_instr_explain_pickup_bomb",			"Pick up the bomb" },
+		{ "csgo_instr_explain_prevent_bomb_pickup",	"Don't let them pick up the bomb" },
+		{ "csgo_instr_explain_defend_bomb",			"Defend the planted bomb" },
+		{ "csgo_cycle_weapons_kb",					"Use %invnext% and %invprev% to cycle weapons" },
+		{ "csgo_instr_explain_inspect",				"Hold %+lookatweapon% to inspect your weapon" },
+		{ "csgo_instr_explain_zoom",				"Press %+attack2% to zoom" },
+		{ "csgo_instr_explain_reload",				"Press %+reload% to reload" },
+		{ "csgo_use_hostage_follow",				"Press %+use% to make the hostage follow you" },
+		{ "csgo_hostage_lead_to_hrz",				"Lead the hostage to the rescue zone" },
+		{ "csgo_instr_rescue_zone",					"Rescue zone" },
+		{ "csgo_prevent_hostage_rescue",			"Stop the hostages from being rescued" },
+	};
+
+	if ( !g_pVGuiLocalize )
+		return;
+
+	for ( int i = 0; i < ARRAYSIZE( s_Tokens ); i++ )
+	{
+		if ( g_pVGuiLocalize->Find( s_Tokens[i].pszToken ) )
+			continue;
+
+		wchar_t wszText[256];
+		g_pVGuiLocalize->ConvertANSIToUnicode( s_Tokens[i].pszText, wszText, sizeof( wszText ) );
+		g_pVGuiLocalize->AddString( s_Tokens[i].pszToken, wszText, "" );
+	}
+}
+
 bool C_GameInstructor::Init( void )
 {
 	// Make sure split slot is up to date
@@ -177,6 +230,8 @@ bool C_GameInstructor::Init( void )
 
 	m_szPreviousStartSound[ 0 ] = '\0';
 	m_fNextStartSoundTime = 0;
+
+	GameInstructor_RegisterEnglishTokens();
 
 	ReadLessonsFromFile( GAMEINSTRUCTOR_MOD_SCRIPT_FILE );
 	ReadLessonsFromFile( GAMEINSTRUCTOR_SCRIPT_FILE );
