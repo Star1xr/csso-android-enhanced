@@ -96,20 +96,65 @@ static Color LocatorGetConVarColor( const ConVar &cvar )
 	return Color( r, g, b, a );
 }
 
-// ISurface::DrawWordBubble() does not exist in CSSO: filled rect + border (no pointer)
+// Filled rounded rectangle (rows of rects, corners inset along a circle)
+static void LocatorFillRoundedRect( int x0, int y0, int x1, int y1, int r, const Color &clr )
+{
+	int w = x1 - x0, h = y1 - y0;
+	if ( w <= 0 || h <= 0 )
+		return;
+
+	r = MAX( 0, MIN( r, MIN( w, h ) / 2 ) );
+	vgui::surface()->DrawSetColor( clr );
+
+	if ( r == 0 )
+	{
+		vgui::surface()->DrawFilledRect( x0, y0, x1, y1 );
+		return;
+	}
+
+	// middle band
+	vgui::surface()->DrawFilledRect( x0, y0 + r, x1, y1 - r );
+
+	// top and bottom rows of the corners
+	for ( int i = 0; i < r; i++ )
+	{
+		float dy = (float)( r - i ) - 0.5f;
+		int inset = r - (int)sqrtf( MAX( 0.0f, (float)( r * r ) - dy * dy ) );
+		vgui::surface()->DrawFilledRect( x0 + inset, y0 + i, x1 - inset, y0 + i + 1 );
+		vgui::surface()->DrawFilledRect( x0 + inset, y1 - i - 1, x1 - inset, y1 - i );
+	}
+}
+
+// ISurface::DrawWordBubble() does not exist in CSSO: rounded filled bubble (+ border if visible), no pointer
 static void LocatorDrawWordBubble( int x0, int y0, int x1, int y1, int nBorder, const Color &bg, const Color &border )
 {
-	vgui::surface()->DrawSetColor( bg );
-	vgui::surface()->DrawFilledRect( x0, y0, x1, y1 );
+	int r = MAX( 3, ( y1 - y0 ) / 4 );
 
 	if ( nBorder > 0 && border[ 3 ] > 0 )
 	{
-		vgui::surface()->DrawSetColor( border );
-		for ( int i = 0; i < nBorder; i++ )
-		{
-			vgui::surface()->DrawOutlinedRect( x0 + i, y0 + i, x1 - i, y1 - i );
-		}
+		LocatorFillRoundedRect( x0, y0, x1, y1, r, border );
+		LocatorFillRoundedRect( x0 + nBorder, y0 + nBorder, x1 - nBorder, y1 - nBorder, MAX( 0, r - nBorder ), bg );
 	}
+	else
+	{
+		LocatorFillRoundedRect( x0, y0, x1, y1, r, bg );
+	}
+}
+
+// CS:GO scheme fonts (InstructorTitle, ...) are not in CSSO's ClientScheme.res: use the first usable font from a fallback list
+static vgui::HFont LocatorPickFont( vgui::IScheme *pScheme, vgui::HFont hCurrent, bool bProportional, const char * const *ppszFallbacks )
+{
+	if ( hCurrent != 0 && vgui::surface()->GetFontTall( hCurrent ) > 0 )
+		return hCurrent;
+
+	for ( ; *ppszFallbacks; ppszFallbacks++ )
+	{
+		vgui::HFont hFont = pScheme->GetFont( *ppszFallbacks, bProportional );
+		if ( hFont != 0 && vgui::surface()->GetFontTall( hFont ) > 0 )
+			return hFont;
+	}
+
+	return hCurrent;
 }
 
 // Panel::LookupElementBounds() does not exist in CSSO: find the child by name, return bounds local to pPanel
@@ -921,6 +966,21 @@ void CLocatorPanel::ApplySchemeSettings( vgui::IScheme *pScheme )
 {
 	BaseClass::ApplySchemeSettings( pScheme );
 	LoadControlSettings( "resource/UI/Locator.res" );
+
+	// The Instructor* fonts only exist in CS:GO's scheme. Fall back to fonts CSSO has, otherwise no text is drawn at all.
+	static const char * const s_Title[]     = { "CenterPrintText", "MenuLarge", "Default", NULL };
+	static const char * const s_Button[]    = { "Default", "DefaultSmall", NULL };
+	static const char * const s_Keys[]      = { "Default", "DefaultSmall", NULL };
+	static const char * const s_KeysSmall[] = { "DefaultSmall", "DefaultVerySmall", "Default", NULL };
+
+	bool bProp = IsProportional();
+	m_hCaptionFont      = LocatorPickFont( pScheme, m_hCaptionFont,      bProp, s_Title );
+	m_hCaptionFont_ss   = LocatorPickFont( pScheme, m_hCaptionFont_ss,   bProp, s_Title );
+	m_hButtonFont       = LocatorPickFont( pScheme, m_hButtonFont,       bProp, s_Button );
+	m_hButtonFont_ss    = LocatorPickFont( pScheme, m_hButtonFont_ss,    bProp, s_Button );
+	m_hKeysFont         = LocatorPickFont( pScheme, m_hKeysFont,         bProp, s_Keys );
+	m_hKeysFontSmall    = LocatorPickFont( pScheme, m_hKeysFontSmall,    bProp, s_KeysSmall );
+	m_hButtonFontSC     = LocatorPickFont( pScheme, m_hButtonFontSC,     bProp, s_Button );
 }
 
 //-----------------------------------------------------------------------------
