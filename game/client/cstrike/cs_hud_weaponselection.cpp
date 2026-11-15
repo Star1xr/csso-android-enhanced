@@ -37,11 +37,6 @@ CCSHudWeaponSelection::CCSHudWeaponSelection( const char* pElementName ) : CHudE
 	m_pDefuserIcon->ClearSchemeUpdateFlag(); // again, I will not even risk that cuz there is no color overrider
 	m_bHasDefuser = false;
 
-	for ( int i = 0; i < MAX_WEP_SELECT_PANELS; i++ )
-	{
-		m_pSlotLabels[i] = NULL;
-	}
-
 	ListenForGameEvent( "round_prestart" );
 	ListenForGameEvent( "round_start" );
 	ListenForGameEvent( "bot_takeover" );
@@ -161,7 +156,6 @@ void CCSHudWeaponSelection::AddWeapon( C_BaseCombatWeapon *pWeapon, bool bSelect
 
 	m_weaponPanels[nWepSlot][nWepPos].pNameLabel->SizeToContents();
 	UpdateCountLabels();
-	UpdateSlotLabels();
 
 	// force a weapon switch to catch where we got a user message but not the network update, yet
 	m_flUpdateInventoryAt = gpGlobals->curtime + 0.1;
@@ -189,6 +183,11 @@ void CCSHudWeaponSelection::RemoveWeapon( int nSlot, int nPos )
 
 			m_weaponPanels[nSlot][nPos].pNameLabel->DeletePanel();
 			m_weaponPanels[nSlot][nPos].pNameLabel = NULL;
+		}
+		if ( m_weaponPanels[nSlot][nPos].pNumberLabel )
+		{
+			m_weaponPanels[nSlot][nPos].pNumberLabel->DeletePanel();
+			m_weaponPanels[nSlot][nPos].pNumberLabel = NULL;
 		}
 		m_weaponPanels[nSlot][nPos].bShowCountNumber = false;
 		m_weaponPanels[nSlot][nPos].hWeapon = NULL;
@@ -249,6 +248,27 @@ WeaponSelectPanel CCSHudWeaponSelection::CreateNewPanel( int nSlot, int nPos, C_
 		pNameLabel->SetVisible( bSelected );
 	}
 	newPanel.pNameLabel = pNameLabel;
+
+	// slot number (1 = primary, 2 = secondary, 3 = knife, 4 = grenades, 5 = C4, 6 = other)
+	// drawn on the top right corner of every icon
+	const char *szNumberLabelName = UTIL_VarArgs( "WeaponSelectPanel_NumberLabel_%d_%d", nSlot, nPos );
+	Label *pNumberLabel = dynamic_cast<Label*>(FindChildByName( szNumberLabelName )); // the panel might already exist
+	if ( !pNumberLabel )
+		pNumberLabel = new Label( this, szNumberLabelName, "" ); // create one if it doesn't exist
+	if ( pNumberLabel )
+	{
+		pNumberLabel->ClearSchemeUpdateFlag(); // same deal as the other labels, no scheme colors
+		pNumberLabel->SetFont( m_hNumberLabelFont );
+		pNumberLabel->SetFgColor( m_clrSelected );
+		pNumberLabel->SetContentAlignment( Label::a_east );
+
+		wchar_t wszNumber[4];
+		V_snwprintf( wszNumber, ARRAYSIZE( wszNumber ), L"%d", nSlot + 1 );
+		pNumberLabel->SetText( wszNumber );
+		pNumberLabel->SizeToContents();
+		pNumberLabel->SetVisible( true );
+	}
+	newPanel.pNumberLabel = pNumberLabel;
 
 	CWeaponCSBase *pCSWeapon = (CWeaponCSBase*) pWeapon;
 	if ( nSlot == 3 || (pCSWeapon && nSlot == 4 && pCSWeapon->IsKindOf( WEAPONTYPE_STACKABLEITEM )) )
@@ -422,7 +442,6 @@ void CCSHudWeaponSelection::ShowAndUpdateSelection( int nType, C_BaseCombatWeapo
 
 	UpdateIconColors();
 	UpdateCountLabels();
-	UpdateSlotLabels();
 	UpdatePanelPositions();
 
 	if ( !cl_showloadout.GetBool() )
@@ -526,6 +545,11 @@ void CCSHudWeaponSelection::UpdatePanelPositions( void )
 				m_weaponPanels[i][j].pSVGPanel->SetPos( nXPos, nYPos );
 				m_weaponPanels[i][j].pNameLabel->SetPos( nXPos + nIconWide - nNameLabelWide + name_label_xpos, nYPos + name_label_ypos );
 				m_weaponPanels[i][j].pNameLabel->SetVisible( bSelected );
+				if ( m_weaponPanels[i][j].pNumberLabel )
+				{
+					int nNumberWide = m_weaponPanels[i][j].pNumberLabel->GetWide();
+					m_weaponPanels[i][j].pNumberLabel->SetPos( nXPos + nIconWide - nNumberWide + number_label_xpos, nYPos + number_label_ypos );
+				}
 				if ( bShowCountNumber )
 					m_weaponPanels[i][j].pCountLabel->SetPos( nXPos + count_label_xpos, nYPos + count_label_ypos );
 
@@ -546,6 +570,11 @@ void CCSHudWeaponSelection::UpdateIconColors()
 			{
 				m_weaponPanels[nSlot][nPos].pSVGPanel->SetFgColor( bSelected ? m_clrSelected : m_clrNotSelected );
 				m_weaponPanels[nSlot][nPos].pNameLabel->SetFgColor( m_clrSelected );
+				if ( m_weaponPanels[nSlot][nPos].pNumberLabel )
+				{
+					Color clrNumberNotSelected( m_clrSelected.r()*0.5f, m_clrSelected.g()*0.5f, m_clrSelected.b()*0.5f, m_clrSelected.a() );
+					m_weaponPanels[nSlot][nPos].pNumberLabel->SetFgColor( bSelected ? m_clrSelected : clrNumberNotSelected );
+				}
 				if ( m_weaponPanels[nSlot][nPos].bShowCountNumber )
 				{
 					Color clrCountNotSelected( m_clrSelected.r()*0.5f, m_clrSelected.g()*0.5f, m_clrSelected.b()*0.5f, m_clrSelected.a() );
@@ -592,58 +621,6 @@ void CCSHudWeaponSelection::UpdateCountLabels()
 			wchar_t buf[32];
 			V_snwprintf( buf, ARRAYSIZE( buf ), L"x%d", ammo );
 			m_weaponPanels[nSlot][nPos].pCountLabel->SetText( buf );
-		}
-	}
-}
-void CCSHudWeaponSelection::UpdateSlotLabels()
-{
-	C_CSPlayer* pPlayer = GetHudPlayer();
-	if ( !pPlayer )
-		return;
-
-	int iXPos = 0, iYPos = 0;
-	bool bFirstTime = true;
-	for ( int i = MAX_WEP_SELECT_PANELS - 1; i >= 0; i-- )
-	{
-		if ( pPlayer->Weapon_GetSlot( i ) )
-		{
-			if ( !m_pSlotLabels[i] )
-			{
-				char szPanelName[128];
-				Q_snprintf( szPanelName, sizeof( szPanelName ), "WeaponSelectPanel_SlotLabel_%d", i );
-
-				wchar_t wszSlot[4];
-				V_snwprintf( wszSlot, sizeof( wszSlot ), L"%d", i+1 );
-
-				m_pSlotLabels[i] = new Label( this, szPanelName, wszSlot );
-				m_pSlotLabels[i]->ClearSchemeUpdateFlag(); // I will not even risk with it after last time
-				m_pSlotLabels[i]->SetFont( m_hSlotLabelFont );
-				m_pSlotLabels[i]->SetFgColor( m_clrSelected );
-				m_pSlotLabels[i]->SetContentAlignment( Label::a_east );
-			}
-
-			if ( bFirstTime )
-			{
-				iXPos = GetWide() - icons_base_xpos + slot_label_xpos;
-				iYPos = icons_base_ypos + slot_label_ypos;
-				if ( pPlayer->HasDefuser() )
-					iYPos -= weapon_icon_defuser_margin;
-
-				bFirstTime = false;
-			}
-			else
-			{
-				iYPos -= weapon_icon_slot_margin;
-			}
-			m_pSlotLabels[i]->SetPos( iXPos, iYPos );
-		}
-		else
-		{
-			if ( m_pSlotLabels[i] )
-			{
-				m_pSlotLabels[i]->DeletePanel();
-				m_pSlotLabels[i] = NULL;
-			}
 		}
 	}
 }

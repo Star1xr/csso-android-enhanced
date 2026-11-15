@@ -31,6 +31,7 @@ struct WeaponSelectPanel
 		pSVGPanel = NULL;
 		pNameLabel = NULL;
 		pCountLabel = NULL;
+		pNumberLabel = NULL;
 		bShowCountNumber = false;
 		hWeapon = NULL;
 		bInitialized = false;
@@ -40,6 +41,7 @@ struct WeaponSelectPanel
 	VectorImagePanel *pSVGPanel;
 	Label *pNameLabel;
 	Label *pCountLabel;
+	Label *pNumberLabel;
 	bool bShowCountNumber;
 	EHANDLE hWeapon;
 	bool bInitialized;
@@ -68,7 +70,6 @@ public:
 	void UpdatePanelPositions( void );
 	void UpdateIconColors();
 	void UpdateCountLabels();
-	void UpdateSlotLabels();
 
 protected:
 	virtual C_WeaponCSBase	*GetSelectedWeapon( void )
@@ -92,13 +93,12 @@ private:
 
 	VectorImagePanel *m_pDefuserIcon;
 	bool m_bHasDefuser;
-	Label *m_pSlotLabels[MAX_WEP_SELECT_PANELS];
 	CPanelAnimationVarAliasType( int, icons_base_xpos, "icons_base_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, icons_base_ypos, "icons_base_ypos", "0", "proportional_ypos" );
 	CPanelAnimationVarAliasType( int, name_label_xpos, "name_label_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, name_label_ypos, "name_label_ypos", "0", "proportional_ypos" );
-	CPanelAnimationVarAliasType( int, slot_label_xpos, "slot_label_xpos", "0", "proportional_xpos" );
-	CPanelAnimationVarAliasType( int, slot_label_ypos, "slot_label_ypos", "0", "proportional_ypos" );
+	CPanelAnimationVarAliasType( int, number_label_xpos, "number_label_xpos", "2", "proportional_xpos" );
+	CPanelAnimationVarAliasType( int, number_label_ypos, "number_label_ypos", "0", "proportional_ypos" );
 
 	CPanelAnimationVarAliasType( int, count_label_xpos, "count_label_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, count_label_ypos, "count_label_ypos", "0", "proportional_ypos" );
@@ -115,7 +115,7 @@ private:
 	CPanelAnimationVar( Color, m_clrDefuser, "defuser_fgcolor", "White" );
 	CPanelAnimationVar( HFont, m_hNameLabelFont, "name_label_font", "WeaponSelectionNameLabelFont" );
 	CPanelAnimationVar( HFont, m_hCountLabelFont, "count_label_font", "WeaponSelectionCountLabelFont" );
-	CPanelAnimationVar( HFont, m_hSlotLabelFont, "count_label_font", "WeaponSelectionSlotLabelFont" );
+	CPanelAnimationVar( HFont, m_hNumberLabelFont, "number_label_font", "WeaponSelectionSlotLabelFont" );
 
 };
 
