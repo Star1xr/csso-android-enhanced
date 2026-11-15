@@ -37,6 +37,8 @@ has useless full ci build and:
 
 - [x] Key bindings (Keyboard page) are available in Options on Android too.
 
+- [x] Game instructor from CS:GO (on-screen hints like "Press B to open the Buy Menu"). Game files are in `docs/game_instructor/`.
+
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
 
