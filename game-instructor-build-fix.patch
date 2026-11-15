@@ -1,0 +1,440 @@
+diff --git a/game/client/c_baselesson.cpp b/game/client/c_baselesson.cpp
+index 68064abd..a110542e 100644
+--- a/game/client/c_baselesson.cpp
++++ b/game/client/c_baselesson.cpp
+@@ -16,7 +16,9 @@
+ #include "ammodef.h"
+ #include "vprof.h"
+ #include "view.h"
+-#include "vstdlib/ikeyvaluessystem.h"
++#include "vstdlib/IKeyValuesSystem.h"
++#include "isaverestore.h"
++#include "saverestoretypes.h"
+ 
+ #ifdef INFESTED_DLL
+ 	#include "c_asw_marine.h"
+@@ -26,6 +28,27 @@
+ // memdbgon must be the last include file in a .cpp file!!!
+ #include "tier0/memdbgon.h"
+ 
++// CS:GO has C_BasePlayer::GetAirTime(); CSSO does not, so track it here.
++static float GameInstructor_GetAirTime( C_BasePlayer *pPlayer )
++{
++	static bool s_bInAir = false;
++	static float s_flAirStart = 0.0f;
++
++	if ( !pPlayer || pPlayer->GetGroundEntity() || pPlayer->GetWaterLevel() >= WL_Feet || pPlayer->GetMoveType() == MOVETYPE_LADDER )
++	{
++		s_bInAir = false;
++		return 0.0f;
++	}
++
++	if ( !s_bInAir )
++	{
++		s_bInAir = true;
++		s_flAirStart = gpGlobals->curtime;
++	}
++
++	return gpGlobals->curtime - s_flAirStart;
++}
++
+ 
+ #define LESSON_PRIORITY_MAX 1000
+ #define LESSON_PRIORITY_NONE 0
+@@ -574,7 +597,7 @@ void CIconLesson::Update( void )
+ 		}
+ 		else
+ 		{
+-			m_fCurrentDistance = pLocalPlayer->ActivePlayerCombatCharacter()->EyePosition().DistTo( pTarget->WorldSpaceCenter() );
++			m_fCurrentDistance = pLocalPlayer->EyePosition().DistTo( pTarget->WorldSpaceCenter() );
+ 		}
+ 
+ 		m_fUpdateDistanceTime = gpGlobals->curtime + LESSON_DISTANCE_UPDATE_RATE;
+@@ -621,7 +644,7 @@ void CIconLesson::UpdateInactive( void )
+ 		}
+ 		else
+ 		{
+-			m_fCurrentDistance = pLocalPlayer->ActivePlayerCombatCharacter()->EyePosition().DistTo( pIconTarget->WorldSpaceCenter() );
++			m_fCurrentDistance = pLocalPlayer->EyePosition().DistTo( pIconTarget->WorldSpaceCenter() );
+ 		}
+ 
+ 		m_fUpdateDistanceTime = gpGlobals->curtime + LESSON_DISTANCE_UPDATE_RATE;
+@@ -663,7 +686,7 @@ bool CIconLesson::ShouldDisplay( void ) const
+ 		}
+ 		else
+ 		{
+-			float flAirTime = pLocalPlayer->GetAirTime();
++			float flAirTime = GameInstructor_GetAirTime( pLocalPlayer );
+ 			if ( flAirTime > 0.75f )
+ 			{
+ 				return false;
+@@ -822,7 +845,7 @@ void CIconLesson::UpdateLocatorTarget( CLocatorTarget *pLocatorTarget, C_BaseEnt
+ 	else
+ 	{
+ 		pLocatorTarget->m_bOriginInScreenspace = false;
+-		pLocatorTarget->m_vecOrigin = pIconTarget->EyePosition() + MainViewUp( 0 ) * m_flRelativeUpOffset + Vector( 0.0f, 0.0f, m_flUpOffset );
++		pLocatorTarget->m_vecOrigin = pIconTarget->EyePosition() + MainViewUp() * m_flRelativeUpOffset + Vector( 0.0f, 0.0f, m_flUpOffset );
+ 		pLocatorTarget->SetVguiTargetName( "" );
+ 	}
+ 
+@@ -999,34 +1022,34 @@ void CIconLesson::UpdateLocatorTarget( CLocatorTarget *pLocatorTarget, C_BaseEnt
+ #define LESSON_VARIABLE_INIT_INFO( _varEnum, _varName, _varType ) \
+ 	void Init_##_varEnum( void ) \
+ 	{ \
+-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
++		iOffset = offsetof( CScriptedIconLesson, _varName ); \
+ 		varType = LessonParamTypeFromString( #_varType ); \
+ 	}
+ 
+ #define LESSON_VARIABLE_INIT_INFO_BOOL( _varEnum, _varName, _varType ) \
+ 	void Init_##_varEnum( void ) \
+ 	{ \
+-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
++		iOffset = offsetof( CScriptedIconLesson, _varName ); \
+ 		varType = FIELD_BOOLEAN; \
+ 	}
+ 
+ #define LESSON_VARIABLE_INIT_INFO_EHANDLE( _varEnum, _varName, _varType ) \
+ 	void Init_##_varEnum( void ) \
+ 	{ \
+-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
++		iOffset = offsetof( CScriptedIconLesson, _varName ); \
+ 		varType = FIELD_EHANDLE; \
+ 	}
+ 
+ #define LESSON_VARIABLE_INIT_INFO_STRING( _varEnum, _varName, _varType ) \
+ 	void Init_##_varEnum( void ) \
+ 	{ \
+-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
++		iOffset = offsetof( CScriptedIconLesson, _varName ); \
+ 		varType = FIELD_STRING; \
+ 	}
+ 
+ // Data desc
+ #define DEFINE_GAMEINSTRUCTOR_SYMBOL(name) \
+-	{ FIELD_CUSTOM, #name, offsetof(classNameTypedef,name), 1, FTYPEDESC_SAVE, NULL, GetGameInstructorSymbolSaveRestoreOps( ), NULL }
++	{ FIELD_CUSTOM, #name, { _offsetof(classNameTypedef,name), 0 }, 1, FTYPEDESC_SAVE, NULL, GetGameInstructorSymbolSaveRestoreOps( ), NULL }
+ 
+ #define LESSON_VARIABLE_DATADESC_INFO( _varEnum, _varName, _varType ) \
+ 	DEFINE_FIELD( _varName, LessonParamTypeFromString( #_varType ) ),
+@@ -2765,8 +2788,8 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 			C_BasePlayer *pVarPlayer = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar ) : NULL );
+ 			C_BasePlayer *pParamPlayer = ( pParam->IsPlayer() ? static_cast< C_BasePlayer* >( pParam ) : NULL );
+ 
+-			Vector vVarPos = ( pVarPlayer ? pVarPlayer->ActivePlayerCombatCharacter()->EyePosition() : pVar->WorldSpaceCenter() );
+-			Vector vParamPos = ( pParamPlayer ? pParamPlayer->ActivePlayerCombatCharacter()->EyePosition() : pParam->WorldSpaceCenter() );
++			Vector vVarPos = ( pVarPlayer ? pVarPlayer->EyePosition() : pVar->WorldSpaceCenter() );
++			Vector vParamPos = ( pParamPlayer ? pParamPlayer->EyePosition() : pParam->WorldSpaceCenter() );
+ 
+ 			m_fOutput = vVarPos.DistTo( vParamPos );
+ 
+@@ -2796,8 +2819,8 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 			C_BasePlayer *pVarPlayer = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar ) : NULL );
+ 			C_BasePlayer *pParamPlayer = ( pParam->IsPlayer() ? static_cast< C_BasePlayer* >( pParam ) : NULL );
+ 
+-			Vector vVarPos = ( pVarPlayer ? pVarPlayer->ActivePlayerCombatCharacter()->EyePosition() : pVar->WorldSpaceCenter() );
+-			Vector vParamPos = ( pParamPlayer ? pParamPlayer->ActivePlayerCombatCharacter()->EyePosition() : pParam->WorldSpaceCenter() );
++			Vector vVarPos = ( pVarPlayer ? pVarPlayer->EyePosition() : pVar->WorldSpaceCenter() );
++			Vector vParamPos = ( pParamPlayer ? pParamPlayer->EyePosition() : pParam->WorldSpaceCenter() );
+ 
+ 			Vector vVarToParam = vParamPos - vVarPos;
+ 			VectorNormalize( vVarToParam );
+@@ -2806,7 +2829,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 
+ 			if ( pVar->IsPlayer() )
+ 			{
+-				AngleVectors( static_cast< C_BasePlayer* >( pVar )->ActivePlayerCombatCharacter()->EyeAngles(), &vVarForward, NULL, NULL );
++				AngleVectors( static_cast< C_BasePlayer* >( pVar )->EyeAngles(), &vVarForward, NULL, NULL );
+ 			}
+ 			else
+ 			{
+@@ -2870,7 +2893,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 				return false;
+ 			}
+ 
+-			*pString = pVar->GetPlayerName();
++			*pString = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar )->GetPlayerName() : "" );
+ 
+ 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
+ 			{
+@@ -3385,7 +3408,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 			// Get the weapon in variable slot
+ 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
+ 			{
+-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
++				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
+ 				if ( pBaseCombatWeaponTemp )
+ 				{
+ 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
+@@ -3456,7 +3479,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 			// Get the weapon in variable slot
+ 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
+ 			{
+-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
++				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
+ 				if ( pBaseCombatWeaponTemp )
+ 				{
+ 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
+@@ -3521,7 +3544,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 			// Get the weapon in variable slot
+ 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
+ 			{
+-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
++				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
+ 				if ( pBaseCombatWeaponTemp )
+ 				{
+ 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
+@@ -3589,7 +3612,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 				return false;
+ 			}
+ 
+-			bool bCanEquip = pBasePlayer->Weapon_CanUse( pBaseCombatWeapon );
++			bool bCanEquip = true; // CSSO has no Weapon_CanUse on the client; assume usable
+ 
+ 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
+ 			{
+@@ -3719,7 +3742,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
+ 				return false;
+ 			}
+ 
+-			pHandle->Set( C_BaseEntity::Instance( pBasePlayer->GetPotentialUseEntity() ) );
++			pHandle->Set( C_BaseEntity::Instance( pBasePlayer->FindUseEntity() ) );
+ 
+ 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
+ 			{
+diff --git a/game/client/c_gameinstructor.cpp b/game/client/c_gameinstructor.cpp
+index db749ee0..9b2ee402 100644
+--- a/game/client/c_gameinstructor.cpp
++++ b/game/client/c_gameinstructor.cpp
+@@ -25,10 +25,6 @@
+ #include "tier0/memdbgon.h"
+ 
+ 
+-PRECACHE_REGISTER_BEGIN( GLOBAL, GameinstructorIcons )
+-	PRECACHE( KV_DEP_FILE, "scripts/instructor_texturemanifest.txt" )
+-PRECACHE_REGISTER_END()
+-
+ 
+ #define MOD_DIR "MOD"
+ 
+diff --git a/game/client/c_keyvalue_saver.h b/game/client/c_keyvalue_saver.h
+index 55994c5e..18db3672 100644
+--- a/game/client/c_keyvalue_saver.h
++++ b/game/client/c_keyvalue_saver.h
+@@ -11,7 +11,7 @@
+ 
+ #include "gameinstructor_compat.h"
+ #include "GameEventListener.h"
+-#include "keyvalues.h"
++#include "tier1/KeyValues.h"
+ 
+ 
+ typedef void (*KeyValueBuilder)( KeyValues* );
+diff --git a/game/client/gameinstructor_compat.h b/game/client/gameinstructor_compat.h
+index 2e99fa6b..d4557e02 100644
+--- a/game/client/gameinstructor_compat.h
++++ b/game/client/gameinstructor_compat.h
+@@ -43,4 +43,18 @@ inline int GameInstructor_CountBitsSet( unsigned int v )
+ #define GetClientMode() g_pClientMode
+ #endif
+ 
++// CS:GO copy protection / self check hooks: nothing to do in CSSO
++#ifndef RANDOM_CEG_TEST_SECRET
++#define RANDOM_CEG_TEST_SECRET()
++#endif
++#ifndef RANDOM_CEG_TEST_SECRET_PERIOD
++#define RANDOM_CEG_TEST_SECRET_PERIOD( a, b ) ( (void)0 )
++#endif
++#ifndef STEAMWORKS_TESTSECRET_AMORTIZE
++#define STEAMWORKS_TESTSECRET_AMORTIZE( x ) ( (void)0 )
++#endif
++#ifndef STEAMWORKS_SELFCHECK
++#define STEAMWORKS_SELFCHECK() ( (void)0 )
++#endif
++
+ #endif // GAMEINSTRUCTOR_COMPAT_H
+diff --git a/game/client/hud_locator_target.cpp b/game/client/hud_locator_target.cpp
+index 4a84718a..6a2bab90 100644
+--- a/game/client/hud_locator_target.cpp
++++ b/game/client/hud_locator_target.cpp
+@@ -86,6 +86,50 @@ ConVar locator_screen_pos_y( "locator_screen_pos_y", "0.35", FCVAR_NONE, "Percen
+ ConVar locator_split_maxwide_percent( "locator_split_maxwide_percent", "0.80f", FCVAR_CHEAT );
+ ConVar locator_split_len( "locator_split_len", "0.5f", FCVAR_CHEAT );
+ 
++// ---- CS:GO API replacements ----
++
++// ConVar::GetColor() does not exist in CSSO: parse "r g b a"
++static Color LocatorGetConVarColor( const ConVar &cvar )
++{
++	int r = 255, g = 255, b = 255, a = 255;
++	sscanf( cvar.GetString(), "%d %d %d %d", &r, &g, &b, &a );
++	return Color( r, g, b, a );
++}
++
++// ISurface::DrawWordBubble() does not exist in CSSO: filled rect + border (no pointer)
++static void LocatorDrawWordBubble( int x0, int y0, int x1, int y1, int nBorder, const Color &bg, const Color &border )
++{
++	vgui::surface()->DrawSetColor( bg );
++	vgui::surface()->DrawFilledRect( x0, y0, x1, y1 );
++
++	if ( nBorder > 0 && border[ 3 ] > 0 )
++	{
++		vgui::surface()->DrawSetColor( border );
++		for ( int i = 0; i < nBorder; i++ )
++		{
++			vgui::surface()->DrawOutlinedRect( x0 + i, y0 + i, x1 - i, y1 - i );
++		}
++	}
++}
++
++// Panel::LookupElementBounds() does not exist in CSSO: find the child by name, return bounds local to pPanel
++static bool LocatorLookupElementBounds( vgui::Panel *pPanel, const char *pchName, int &x, int &y, int &wide, int &tall )
++{
++	vgui::Panel *pChild = pPanel->FindChildByName( pchName, true );
++	if ( !pChild )
++		return false;
++
++	int sx = 0, sy = 0;
++	pChild->LocalToScreen( sx, sy );
++	pPanel->ScreenToLocal( sx, sy );
++	x = sx;
++	y = sy;
++	wide = pChild->GetWide();
++	tall = pChild->GetTall();
++	return true;
++}
++
++
+ // This maps a controller origin to a localized string (like "GameUI_Icons_SC_L_Trigger"). That string
+ // will then remap to a character (like 'L'), which will correspond to a character inside the SC button font file.
+ 
+@@ -96,15 +140,7 @@ bool IsLocatorSplitscreen( void )
+ }
+ 
+ 
+-//Precahce the effects
+-
+-PRECACHE_REGISTER_BEGIN( GLOBAL, PrecacheLocatorTarget )
+-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_left" )
+-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_right" )
+-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_up" )
+-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_down" )
+-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_plain" )
+-PRECACHE_REGISTER_END()
++// CS:GO precache registration dropped: CSSO has no PRECACHE_REGISTER_BEGIN, the arrow materials load on demand
+ 
+ 
+ //------------------------------------
+@@ -1331,7 +1367,7 @@ bool CLocatorPanel::ValidateTargetTextures( CLocatorTarget *pTarget )
+ 		}
+ 		else
+ 		{
+-			pTarget->m_pIcon_onscreen = HudIcons().GetIcon( szIconTextureName );
++			pTarget->m_pIcon_onscreen = gHUD.GetIcon( szIconTextureName );
+ 			if ( pTarget->m_pIcon_onscreen )
+ 			{
+ 				pTarget->m_widthScale_onscreen = static_cast< float >( pTarget->m_pIcon_onscreen->Width() ) / pTarget->m_pIcon_onscreen->Height();
+@@ -1372,7 +1408,7 @@ bool CLocatorPanel::ValidateTargetTextures( CLocatorTarget *pTarget )
+ 		}
+ 		else
+ 		{
+-			pTarget->m_pIcon_offscreen = HudIcons().GetIcon( szIconTextureName );
++			pTarget->m_pIcon_offscreen = gHUD.GetIcon( szIconTextureName );
+ 		}
+ 
+ 		return true;
+@@ -1614,14 +1650,13 @@ void CLocatorPanel::DrawPointerBackground( CLocatorTarget *pTarget, int nPointer
+ 
+ 	float fAlpha = static_cast<float>( pTarget->m_alpha ) / 255.0f;
+ 
+-	Color rgbaBackground = locator_background_color.GetColor();
++	Color rgbaBackground = LocatorGetConVarColor( locator_background_color );
+ 	rgbaBackground[ 3 ] *= fAlpha;
+ 
+-	Color rgbaBorder = locator_background_border_color.GetColor();
++	Color rgbaBorder = LocatorGetConVarColor( locator_background_border_color );
+ 	rgbaBorder[ 3 ] *= fAlpha;
+ 
+-	vgui::surface()->DrawWordBubble( nPosX, nPosY, nPosX + nBackgroundWide, nPosY + nBackgroundTall, locator_background_border_thickness.GetInt(), 
+-									 rgbaBackground, rgbaBorder, bPointer, nPointerX, nPointerY, ScreenWidth() * ICON_SIZE );
++	LocatorDrawWordBubble( nPosX, nPosY, nPosX + nBackgroundWide, nPosY + nBackgroundTall, locator_background_border_thickness.GetInt(), rgbaBackground, rgbaBorder );
+ }
+ 
+ //-----------------------------------------------------------------------------
+@@ -1630,7 +1665,6 @@ void CLocatorPanel::DrawPointerBackground( CLocatorTarget *pTarget, int nPointer
+ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
+ {
+ 	float flApparentZ = 15.0f;
+-	vgui::surface()->DrawSetApparentDepth( flApparentZ );
+ 
+ 	int centerX = ScreenWidth() / 2;
+ 	int centerY = ScreenHeight() / 2;
+@@ -1696,7 +1730,7 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
+ 		if ( pchLookup[ 0 ] != '\0' )
+ 		{
+ 			bool bLookupSuccess = false;
+-			bLookupSuccess = pVguiTarget->LookupElementBounds( pchLookup, nPanelX, nPanelY, nWide, nTall );
++			bLookupSuccess = LocatorLookupElementBounds( pVguiTarget, pchLookup, nPanelX, nPanelY, nWide, nTall );
+ 
+ 			Assert( bLookupSuccess );
+ 		}
+@@ -1743,7 +1777,7 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
+ 			// Don't draw the icon if we're on 360 and have a binding to draw
+ 			Color colorIcon = pTarget->GetIconColor();
+ 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
+-			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iconWide, iconTall, colorIcon, flApparentZ );
++			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iconWide, iconTall, colorIcon );
+ 		}
+ 	}
+ 
+@@ -1770,7 +1804,6 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
+ 		m_staticIconPosition += (iconTall>>2);
+ 	}
+ 
+-	vgui::surface()->DrawClearApparentDepth();
+ }
+ 
+ //-----------------------------------------------------------------------------
+@@ -1792,7 +1825,6 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
+ 	// Use the distance to target for stereo depth
+ 	Vector vOffsetNormal = pTarget->m_vecOrigin - MainViewOrigin();
+ 	float flApparentZ = vOffsetNormal.Length() * 0.75f; // Set the depth to 75% of the distance to center of object
+-	vgui::surface()->DrawSetApparentDepth( flApparentZ );
+ 
+ 	// Draw the icon!
+ 	vgui::surface()->DrawSetColor( 255, 255, 255, alpha );
+@@ -1849,7 +1881,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
+ 		if ( pchLookup[ 0 ] != '\0' )
+ 		{
+ 			bool bLookupSuccess = false;
+-			bLookupSuccess = pVguiTarget->LookupElementBounds( pchLookup, nTargetX, nTargetY, nWide, nTall );
++			bLookupSuccess = LocatorLookupElementBounds( pVguiTarget, pchLookup, nTargetX, nTargetY, nWide, nTall );
+ 			Assert( bLookupSuccess );
+ 		}
+ 
+@@ -1908,7 +1940,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
+ 		{
+ 			Color colorIcon = pTarget->GetIconColor();
+ 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
+-			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon, flApparentZ );
++			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon );
+ 			//Msg( "WIDE = %i\n", iWide );
+ 		}
+ 	}
+@@ -1918,7 +1950,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
+ 		{
+ 			Color colorIcon = pTarget->GetIconColor();
+ 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
+-			pTarget->m_pIcon_offscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon, flApparentZ );
++			pTarget->m_pIcon_offscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon );
+ 		}
+ 	}
+ 
+@@ -1950,7 +1982,6 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
+ 		}
+ 	}
+ 
+-	vgui::surface()->DrawClearApparentDepth();
+ }
+ 
+ //-----------------------------------------------------------------------------

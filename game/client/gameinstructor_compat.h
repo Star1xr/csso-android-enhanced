@@ -43,4 +43,18 @@ inline int GameInstructor_CountBitsSet( unsigned int v )
 #define GetClientMode() g_pClientMode
 #endif
 
+// CS:GO copy protection / self check hooks: nothing to do in CSSO
+#ifndef RANDOM_CEG_TEST_SECRET
+#define RANDOM_CEG_TEST_SECRET()
+#endif
+#ifndef RANDOM_CEG_TEST_SECRET_PERIOD
+#define RANDOM_CEG_TEST_SECRET_PERIOD( a, b ) ( (void)0 )
+#endif
+#ifndef STEAMWORKS_TESTSECRET_AMORTIZE
+#define STEAMWORKS_TESTSECRET_AMORTIZE( x ) ( (void)0 )
+#endif
+#ifndef STEAMWORKS_SELFCHECK
+#define STEAMWORKS_SELFCHECK() ( (void)0 )
+#endif
+
 #endif // GAMEINSTRUCTOR_COMPAT_H

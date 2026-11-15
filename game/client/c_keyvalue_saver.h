@@ -11,7 +11,7 @@
 
 #include "gameinstructor_compat.h"
 #include "GameEventListener.h"
-#include "keyvalues.h"
+#include "tier1/KeyValues.h"
 
 
 typedef void (*KeyValueBuilder)( KeyValues* );

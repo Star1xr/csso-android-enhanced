@@ -86,6 +86,50 @@ ConVar locator_screen_pos_y( "locator_screen_pos_y", "0.35", FCVAR_NONE, "Percen
 ConVar locator_split_maxwide_percent( "locator_split_maxwide_percent", "0.80f", FCVAR_CHEAT );
 ConVar locator_split_len( "locator_split_len", "0.5f", FCVAR_CHEAT );
 
+// ---- CS:GO API replacements ----
+
+// ConVar::GetColor() does not exist in CSSO: parse "r g b a"
+static Color LocatorGetConVarColor( const ConVar &cvar )
+{
+	int r = 255, g = 255, b = 255, a = 255;
+	sscanf( cvar.GetString(), "%d %d %d %d", &r, &g, &b, &a );
+	return Color( r, g, b, a );
+}
+
+// ISurface::DrawWordBubble() does not exist in CSSO: filled rect + border (no pointer)
+static void LocatorDrawWordBubble( int x0, int y0, int x1, int y1, int nBorder, const Color &bg, const Color &border )
+{
+	vgui::surface()->DrawSetColor( bg );
+	vgui::surface()->DrawFilledRect( x0, y0, x1, y1 );
+
+	if ( nBorder > 0 && border[ 3 ] > 0 )
+	{
+		vgui::surface()->DrawSetColor( border );
+		for ( int i = 0; i < nBorder; i++ )
+		{
+			vgui::surface()->DrawOutlinedRect( x0 + i, y0 + i, x1 - i, y1 - i );
+		}
+	}
+}
+
+// Panel::LookupElementBounds() does not exist in CSSO: find the child by name, return bounds local to pPanel
+static bool LocatorLookupElementBounds( vgui::Panel *pPanel, const char *pchName, int &x, int &y, int &wide, int &tall )
+{
+	vgui::Panel *pChild = pPanel->FindChildByName( pchName, true );
+	if ( !pChild )
+		return false;
+
+	int sx = 0, sy = 0;
+	pChild->LocalToScreen( sx, sy );
+	pPanel->ScreenToLocal( sx, sy );
+	x = sx;
+	y = sy;
+	wide = pChild->GetWide();
+	tall = pChild->GetTall();
+	return true;
+}
+
+
 // This maps a controller origin to a localized string (like "GameUI_Icons_SC_L_Trigger"). That string
 // will then remap to a character (like 'L'), which will correspond to a character inside the SC button font file.
 
@@ -96,15 +140,7 @@ bool IsLocatorSplitscreen( void )
 }
 
 
-//Precahce the effects
-
-PRECACHE_REGISTER_BEGIN( GLOBAL, PrecacheLocatorTarget )
-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_left" )
-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_right" )
-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_up" )
-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_down" )
-	PRECACHE( MATERIAL, "vgui/hud/icon_arrow_plain" )
-PRECACHE_REGISTER_END()
+// CS:GO precache registration dropped: CSSO has no PRECACHE_REGISTER_BEGIN, the arrow materials load on demand
 
 
 //------------------------------------
@@ -1331,7 +1367,7 @@ bool CLocatorPanel::ValidateTargetTextures( CLocatorTarget *pTarget )
 		}
 		else
 		{
-			pTarget->m_pIcon_onscreen = HudIcons().GetIcon( szIconTextureName );
+			pTarget->m_pIcon_onscreen = gHUD.GetIcon( szIconTextureName );
 			if ( pTarget->m_pIcon_onscreen )
 			{
 				pTarget->m_widthScale_onscreen = static_cast< float >( pTarget->m_pIcon_onscreen->Width() ) / pTarget->m_pIcon_onscreen->Height();
@@ -1372,7 +1408,7 @@ bool CLocatorPanel::ValidateTargetTextures( CLocatorTarget *pTarget )
 		}
 		else
 		{
-			pTarget->m_pIcon_offscreen = HudIcons().GetIcon( szIconTextureName );
+			pTarget->m_pIcon_offscreen = gHUD.GetIcon( szIconTextureName );
 		}
 
 		return true;
@@ -1614,14 +1650,13 @@ void CLocatorPanel::DrawPointerBackground( CLocatorTarget *pTarget, int nPointer
 
 	float fAlpha = static_cast<float>( pTarget->m_alpha ) / 255.0f;
 
-	Color rgbaBackground = locator_background_color.GetColor();
+	Color rgbaBackground = LocatorGetConVarColor( locator_background_color );
 	rgbaBackground[ 3 ] *= fAlpha;
 
-	Color rgbaBorder = locator_background_border_color.GetColor();
+	Color rgbaBorder = LocatorGetConVarColor( locator_background_border_color );
 	rgbaBorder[ 3 ] *= fAlpha;
 
-	vgui::surface()->DrawWordBubble( nPosX, nPosY, nPosX + nBackgroundWide, nPosY + nBackgroundTall, locator_background_border_thickness.GetInt(), 
-									 rgbaBackground, rgbaBorder, bPointer, nPointerX, nPointerY, ScreenWidth() * ICON_SIZE );
+	LocatorDrawWordBubble( nPosX, nPosY, nPosX + nBackgroundWide, nPosY + nBackgroundTall, locator_background_border_thickness.GetInt(), rgbaBackground, rgbaBorder );
 }
 
 //-----------------------------------------------------------------------------
@@ -1630,7 +1665,6 @@ void CLocatorPanel::DrawPointerBackground( CLocatorTarget *pTarget, int nPointer
 void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
 {
 	float flApparentZ = 15.0f;
-	vgui::surface()->DrawSetApparentDepth( flApparentZ );
 
 	int centerX = ScreenWidth() / 2;
 	int centerY = ScreenHeight() / 2;
@@ -1696,7 +1730,7 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
 		if ( pchLookup[ 0 ] != '\0' )
 		{
 			bool bLookupSuccess = false;
-			bLookupSuccess = pVguiTarget->LookupElementBounds( pchLookup, nPanelX, nPanelY, nWide, nTall );
+			bLookupSuccess = LocatorLookupElementBounds( pVguiTarget, pchLookup, nPanelX, nPanelY, nWide, nTall );
 
 			Assert( bLookupSuccess );
 		}
@@ -1743,7 +1777,7 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
 			// Don't draw the icon if we're on 360 and have a binding to draw
 			Color colorIcon = pTarget->GetIconColor();
 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
-			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iconWide, iconTall, colorIcon, flApparentZ );
+			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iconWide, iconTall, colorIcon );
 		}
 	}
 
@@ -1770,7 +1804,6 @@ void CLocatorPanel::DrawStaticIcon( CLocatorTarget *pTarget )
 		m_staticIconPosition += (iconTall>>2);
 	}
 
-	vgui::surface()->DrawClearApparentDepth();
 }
 
 //-----------------------------------------------------------------------------
@@ -1792,7 +1825,6 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
 	// Use the distance to target for stereo depth
 	Vector vOffsetNormal = pTarget->m_vecOrigin - MainViewOrigin();
 	float flApparentZ = vOffsetNormal.Length() * 0.75f; // Set the depth to 75% of the distance to center of object
-	vgui::surface()->DrawSetApparentDepth( flApparentZ );
 
 	// Draw the icon!
 	vgui::surface()->DrawSetColor( 255, 255, 255, alpha );
@@ -1849,7 +1881,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
 		if ( pchLookup[ 0 ] != '\0' )
 		{
 			bool bLookupSuccess = false;
-			bLookupSuccess = pVguiTarget->LookupElementBounds( pchLookup, nTargetX, nTargetY, nWide, nTall );
+			bLookupSuccess = LocatorLookupElementBounds( pVguiTarget, pchLookup, nTargetX, nTargetY, nWide, nTall );
 			Assert( bLookupSuccess );
 		}
 
@@ -1908,7 +1940,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
 		{
 			Color colorIcon = pTarget->GetIconColor();
 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
-			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon, flApparentZ );
+			pTarget->m_pIcon_onscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon );
 			//Msg( "WIDE = %i\n", iWide );
 		}
 	}
@@ -1918,7 +1950,7 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
 		{
 			Color colorIcon = pTarget->GetIconColor();
 			colorIcon[ 3 ] = pTarget->m_alpha * static_cast< float >( colorIcon[ 3 ] ) / 255.0f;
-			pTarget->m_pIcon_offscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon, flApparentZ );
+			pTarget->m_pIcon_offscreen->DrawSelf( pTarget->GetIconX(), pTarget->GetIconY(), iWide, pTarget->m_tall, colorIcon );
 		}
 	}
 
@@ -1950,7 +1982,6 @@ void CLocatorPanel::DrawDynamicIcon( CLocatorTarget *pTarget, bool bDrawCaption,
 		}
 	}
 
-	vgui::surface()->DrawClearApparentDepth();
 }
 
 //-----------------------------------------------------------------------------

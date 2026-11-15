@@ -25,10 +25,6 @@
 #include "tier0/memdbgon.h"
 
 
-PRECACHE_REGISTER_BEGIN( GLOBAL, GameinstructorIcons )
-	PRECACHE( KV_DEP_FILE, "scripts/instructor_texturemanifest.txt" )
-PRECACHE_REGISTER_END()
-
 
 #define MOD_DIR "MOD"
 

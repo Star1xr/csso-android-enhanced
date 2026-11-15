@@ -16,7 +16,9 @@
 #include "ammodef.h"
 #include "vprof.h"
 #include "view.h"
-#include "vstdlib/ikeyvaluessystem.h"
+#include "vstdlib/IKeyValuesSystem.h"
+#include "isaverestore.h"
+#include "saverestoretypes.h"
 
 #ifdef INFESTED_DLL
 	#include "c_asw_marine.h"
@@ -25,6 +27,27 @@
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+// CS:GO has C_BasePlayer::GetAirTime(); CSSO does not, so track it here.
+static float GameInstructor_GetAirTime( C_BasePlayer *pPlayer )
+{
+	static bool s_bInAir = false;
+	static float s_flAirStart = 0.0f;
+
+	if ( !pPlayer || pPlayer->GetGroundEntity() || pPlayer->GetWaterLevel() >= WL_Feet || pPlayer->GetMoveType() == MOVETYPE_LADDER )
+	{
+		s_bInAir = false;
+		return 0.0f;
+	}
+
+	if ( !s_bInAir )
+	{
+		s_bInAir = true;
+		s_flAirStart = gpGlobals->curtime;
+	}
+
+	return gpGlobals->curtime - s_flAirStart;
+}
 
 
 #define LESSON_PRIORITY_MAX 1000
@@ -574,7 +597,7 @@ void CIconLesson::Update( void )
 		}
 		else
 		{
-			m_fCurrentDistance = pLocalPlayer->ActivePlayerCombatCharacter()->EyePosition().DistTo( pTarget->WorldSpaceCenter() );
+			m_fCurrentDistance = pLocalPlayer->EyePosition().DistTo( pTarget->WorldSpaceCenter() );
 		}
 
 		m_fUpdateDistanceTime = gpGlobals->curtime + LESSON_DISTANCE_UPDATE_RATE;
@@ -621,7 +644,7 @@ void CIconLesson::UpdateInactive( void )
 		}
 		else
 		{
-			m_fCurrentDistance = pLocalPlayer->ActivePlayerCombatCharacter()->EyePosition().DistTo( pIconTarget->WorldSpaceCenter() );
+			m_fCurrentDistance = pLocalPlayer->EyePosition().DistTo( pIconTarget->WorldSpaceCenter() );
 		}
 
 		m_fUpdateDistanceTime = gpGlobals->curtime + LESSON_DISTANCE_UPDATE_RATE;
@@ -663,7 +686,7 @@ bool CIconLesson::ShouldDisplay( void ) const
 		}
 		else
 		{
-			float flAirTime = pLocalPlayer->GetAirTime();
+			float flAirTime = GameInstructor_GetAirTime( pLocalPlayer );
 			if ( flAirTime > 0.75f )
 			{
 				return false;
@@ -822,7 +845,7 @@ void CIconLesson::UpdateLocatorTarget( CLocatorTarget *pLocatorTarget, C_BaseEnt
 	else
 	{
 		pLocatorTarget->m_bOriginInScreenspace = false;
-		pLocatorTarget->m_vecOrigin = pIconTarget->EyePosition() + MainViewUp( 0 ) * m_flRelativeUpOffset + Vector( 0.0f, 0.0f, m_flUpOffset );
+		pLocatorTarget->m_vecOrigin = pIconTarget->EyePosition() + MainViewUp() * m_flRelativeUpOffset + Vector( 0.0f, 0.0f, m_flUpOffset );
 		pLocatorTarget->SetVguiTargetName( "" );
 	}
 
@@ -999,34 +1022,34 @@ void CIconLesson::UpdateLocatorTarget( CLocatorTarget *pLocatorTarget, C_BaseEnt
 #define LESSON_VARIABLE_INIT_INFO( _varEnum, _varName, _varType ) \
 	void Init_##_varEnum( void ) \
 	{ \
-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
+		iOffset = offsetof( CScriptedIconLesson, _varName ); \
 		varType = LessonParamTypeFromString( #_varType ); \
 	}
 
 #define LESSON_VARIABLE_INIT_INFO_BOOL( _varEnum, _varName, _varType ) \
 	void Init_##_varEnum( void ) \
 	{ \
-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
+		iOffset = offsetof( CScriptedIconLesson, _varName ); \
 		varType = FIELD_BOOLEAN; \
 	}
 
 #define LESSON_VARIABLE_INIT_INFO_EHANDLE( _varEnum, _varName, _varType ) \
 	void Init_##_varEnum( void ) \
 	{ \
-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
+		iOffset = offsetof( CScriptedIconLesson, _varName ); \
 		varType = FIELD_EHANDLE; \
 	}
 
 #define LESSON_VARIABLE_INIT_INFO_STRING( _varEnum, _varName, _varType ) \
 	void Init_##_varEnum( void ) \
 	{ \
-		iOffset = offsetof( CScriptedIconLesson, CScriptedIconLesson::_varName ); \
+		iOffset = offsetof( CScriptedIconLesson, _varName ); \
 		varType = FIELD_STRING; \
 	}
 
 // Data desc
 #define DEFINE_GAMEINSTRUCTOR_SYMBOL(name) \
-	{ FIELD_CUSTOM, #name, offsetof(classNameTypedef,name), 1, FTYPEDESC_SAVE, NULL, GetGameInstructorSymbolSaveRestoreOps( ), NULL }
+	{ FIELD_CUSTOM, #name, { _offsetof(classNameTypedef,name), 0 }, 1, FTYPEDESC_SAVE, NULL, GetGameInstructorSymbolSaveRestoreOps( ), NULL }
 
 #define LESSON_VARIABLE_DATADESC_INFO( _varEnum, _varName, _varType ) \
 	DEFINE_FIELD( _varName, LessonParamTypeFromString( #_varType ) ),
@@ -2765,8 +2788,8 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 			C_BasePlayer *pVarPlayer = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar ) : NULL );
 			C_BasePlayer *pParamPlayer = ( pParam->IsPlayer() ? static_cast< C_BasePlayer* >( pParam ) : NULL );
 
-			Vector vVarPos = ( pVarPlayer ? pVarPlayer->ActivePlayerCombatCharacter()->EyePosition() : pVar->WorldSpaceCenter() );
-			Vector vParamPos = ( pParamPlayer ? pParamPlayer->ActivePlayerCombatCharacter()->EyePosition() : pParam->WorldSpaceCenter() );
+			Vector vVarPos = ( pVarPlayer ? pVarPlayer->EyePosition() : pVar->WorldSpaceCenter() );
+			Vector vParamPos = ( pParamPlayer ? pParamPlayer->EyePosition() : pParam->WorldSpaceCenter() );
 
 			m_fOutput = vVarPos.DistTo( vParamPos );
 
@@ -2796,8 +2819,8 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 			C_BasePlayer *pVarPlayer = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar ) : NULL );
 			C_BasePlayer *pParamPlayer = ( pParam->IsPlayer() ? static_cast< C_BasePlayer* >( pParam ) : NULL );
 
-			Vector vVarPos = ( pVarPlayer ? pVarPlayer->ActivePlayerCombatCharacter()->EyePosition() : pVar->WorldSpaceCenter() );
-			Vector vParamPos = ( pParamPlayer ? pParamPlayer->ActivePlayerCombatCharacter()->EyePosition() : pParam->WorldSpaceCenter() );
+			Vector vVarPos = ( pVarPlayer ? pVarPlayer->EyePosition() : pVar->WorldSpaceCenter() );
+			Vector vParamPos = ( pParamPlayer ? pParamPlayer->EyePosition() : pParam->WorldSpaceCenter() );
 
 			Vector vVarToParam = vParamPos - vVarPos;
 			VectorNormalize( vVarToParam );
@@ -2806,7 +2829,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 
 			if ( pVar->IsPlayer() )
 			{
-				AngleVectors( static_cast< C_BasePlayer* >( pVar )->ActivePlayerCombatCharacter()->EyeAngles(), &vVarForward, NULL, NULL );
+				AngleVectors( static_cast< C_BasePlayer* >( pVar )->EyeAngles(), &vVarForward, NULL, NULL );
 			}
 			else
 			{
@@ -2870,7 +2893,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 				return false;
 			}
 
-			*pString = pVar->GetPlayerName();
+			*pString = ( pVar->IsPlayer() ? static_cast< C_BasePlayer* >( pVar )->GetPlayerName() : "" );
 
 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
 			{
@@ -3385,7 +3408,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 			// Get the weapon in variable slot
 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
 			{
-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
+				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
 				if ( pBaseCombatWeaponTemp )
 				{
 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
@@ -3456,7 +3479,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 			// Get the weapon in variable slot
 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
 			{
-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
+				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
 				if ( pBaseCombatWeaponTemp )
 				{
 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
@@ -3521,7 +3544,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 			// Get the weapon in variable slot
 			for ( int iWeapon = 0; iWeapon < MAX_WEAPONS; iWeapon++ )
 			{
-				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->ActivePlayerCombatCharacter()->GetWeapon( iWeapon );
+				CBaseCombatWeapon *pBaseCombatWeaponTemp = pBasePlayer->GetWeapon( iWeapon );
 				if ( pBaseCombatWeaponTemp )
 				{
 					if ( pBaseCombatWeaponTemp->GetSlot() == iTemp )
@@ -3589,7 +3612,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 				return false;
 			}
 
-			bool bCanEquip = pBasePlayer->Weapon_CanUse( pBaseCombatWeapon );
+			bool bCanEquip = true; // CSSO has no Weapon_CanUse on the client; assume usable
 
 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
 			{
@@ -3719,7 +3742,7 @@ bool CScriptedIconLesson::ProcessElementAction( int iAction, bool bNot, const ch
 				return false;
 			}
 
-			pHandle->Set( C_BaseEntity::Instance( pBasePlayer->GetPotentialUseEntity() ) );
+			pHandle->Set( C_BaseEntity::Instance( pBasePlayer->FindUseEntity() ) );
 
 			if ( gameinstructor_verbose.GetInt() > 0 && ShouldShowSpew() )
 			{
