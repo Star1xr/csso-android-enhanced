@@ -7,18 +7,19 @@
 	// NOTE: the positions / sizes of the timer, score boxes and bomb icon below are re-applied by
 	// LayoutNew() in the code (pixel-exact and symmetric at any resolution); this file mainly
 	// provides fonts and colours. The values are the 1080p result, for reference.
-	// Everything is 1080p units. The centre block is 64 wide and as tall as an avatar + its
-	// colour bar (36 + 4 = 40): timer on top (21), the two score boxes below (18).
-	// Centre block starts at x = 5*36 + 4*4 + 4 = 200. If you change the avatar size, gap
+	// Everything is 1080p units. The centre block has the same size as in the other styles: 84 wide,
+	// as tall as an avatar + its colour bar (67 + 4 = 71): timer 84x37 on top, gap 3, the two score
+	// boxes 41x31 below.
+	// Centre block starts at x = 5*67 + 4*4 + 4 = 355. If you change the avatar size, gap
 	// or centre width in the code, change the xpos values here too.
 
 	"RoundTimerLabel"
 	{
 		"fieldName"			"RoundTimerLabel"
-		"xpos"				"200"
+		"xpos"				"355"
 		"ypos"				"0"
-		"wide"				"64"
-		"tall"				"21"
+		"wide"				"84"
+		"tall"				"37"
 		"base_resolution_wide" "1920"
 		"base_resolution_tall" "1080"
 		"textAlignment"		"center"
@@ -32,9 +33,9 @@
 	"BombIcon"
 	{
 		"fieldName"			"BombIcon"
-		"xpos"				"221"
+		"xpos"				"376"
 		"ypos"				"0"
-		"wide"				"22"
+		"wide"				"42"
 		"tall"				"0" // computed procedurally
 		"base_resolution_wide" "1920"
 		"base_resolution_tall" "1080"
@@ -45,10 +46,10 @@
 	"CTWinCounterLabel"
 	{
 		"fieldName"			"CTWinCounterLabel"
-		"xpos"				"200"
-		"ypos"				"22"
-		"wide"				"31"
-		"tall"				"18"
+		"xpos"				"355"
+		"ypos"				"40"
+		"wide"				"41"
+		"tall"				"31"
 		"base_resolution_wide" "1920"
 		"base_resolution_tall" "1080"
 		"textAlignment"		"center"
@@ -62,10 +63,10 @@
 	"TWinCounterLabel"
 	{
 		"fieldName"			"TWinCounterLabel"
-		"xpos"				"233"
-		"ypos"				"22"
-		"wide"				"31"
-		"tall"				"18"
+		"xpos"				"398"
+		"ypos"				"40"
+		"wide"				"41"
+		"tall"				"31"
 		"base_resolution_wide" "1920"
 		"base_resolution_tall" "1080"
 		"textAlignment"		"center"
