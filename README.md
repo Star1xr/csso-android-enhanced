@@ -17,7 +17,9 @@ has useless full ci build and:
 
 - [ ] Round buy wheel
 
-- [x] Better CS:GO chat
+- [x] Each weapon icon in the HUD weapon list (bottom right inventory) now carries a small number on its top-right corner like CS:GO and CS:SO 2.0
+
+- [x] Better CS:SO 2.0 chat
 
 - [x] HUD safe area (notch margin) on HUD options in Mod Options (0-99)
 
@@ -35,7 +37,7 @@ has useless full ci build and:
 
 - [x] Key bindings (Keyboard page) are available in Options on Android too.
 
-- [x] Game instructor from CS:GO (on-screen hints like "Press B to open the Buy Menu"). Game files are in `docs/game_instructor/`.
+- [x] Game instructor from CS:GO (https://github.com/SwagSoftware/Kisak-Strike) (on-screen hints like "Press B to open the Buy Menu"). Game files are in `docs/`.
 
 CS:SO Apk Source Code https://github.com/ndke01/csso-android-launcher
 
